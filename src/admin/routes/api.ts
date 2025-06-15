@@ -642,4 +642,223 @@ router.post('/test/video', async (req, res) => {
   }
 });
 
+// YouTube upload and management endpoints
+
+// Get YouTube service status
+router.get('/youtube/status', async (req, res) => {
+  try {
+    const status = await videoOrchestrator.getYouTubeServiceStatus();
+    
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    logger.error('API YouTube status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get YouTube service status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Upload existing video to YouTube
+router.post('/youtube/upload', async (req, res) => {
+  try {
+    const { videoFilePath, title, description, tags, privacy, language } = req.body;
+    
+    if (!videoFilePath || !title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Video file path and title are required'
+      });
+    }
+    
+    logger.info('Uploading video to YouTube via API', { title, videoFilePath });
+    
+    const result = await videoOrchestrator.uploadExistingVideo(
+      videoFilePath,
+      title,
+      description || '',
+      tags || [],
+      {
+        privacy: privacy || 'public',
+        language: language || 'ko'
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Video uploaded successfully to YouTube',
+      data: {
+        videoId: result.videoId,
+        videoUrl: result.videoUrl,
+        title: result.title,
+        status: result.status,
+        uploadTime: result.uploadTime
+      }
+    });
+  } catch (error) {
+    logger.error('API YouTube upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload video to YouTube',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get video metrics from YouTube
+router.get('/youtube/metrics/:videoId', async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    
+    if (!videoId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Video ID is required'
+      });
+    }
+    
+    const metrics = await videoOrchestrator.getVideoMetrics(videoId);
+    
+    res.json({
+      success: true,
+      data: metrics
+    });
+  } catch (error) {
+    logger.error('API YouTube metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get video metrics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Generate thumbnails only
+router.post('/thumbnails/generate', async (req, res) => {
+  try {
+    const { title, topic, style, language } = req.body;
+    
+    if (!title || !topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and topic are required'
+      });
+    }
+    
+    logger.info('Generating thumbnails via API', { title, topic, style });
+    
+    const result = await videoOrchestrator.createThumbnailsOnly(
+      title,
+      topic,
+      {
+        thumbnailStyle: style || 'vibrant',
+        language: language || 'ko'
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Thumbnails generated successfully',
+      data: {
+        testId: result.testConfiguration.testId,
+        thumbnailA: {
+          filePath: result.thumbnailA.filePath,
+          style: result.thumbnailA.style,
+          fileSize: result.thumbnailA.fileSize
+        },
+        thumbnailB: {
+          filePath: result.thumbnailB.filePath,
+          style: result.thumbnailB.style,
+          fileSize: result.thumbnailB.fileSize
+        },
+        testConfiguration: result.testConfiguration
+      }
+    });
+  } catch (error) {
+    logger.error('API thumbnail generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate thumbnails',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Test complete pipeline with upload
+router.post('/test/complete-pipeline', async (req, res) => {
+  try {
+    const { topic, category, style, duration, privacy, skipUpload } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
+      });
+    }
+    
+    logger.info('Testing complete pipeline with upload via API', { topic, style, privacy });
+    
+    // Create a complete video job including upload
+    const result = await videoOrchestrator.createJobWithManualTopic(
+      topic,
+      category || 'general',
+      {
+        contentStyle: style || 'educational',
+        targetDuration: duration || 58,
+        videoStyle: 'cinematic',
+        thumbnailStyle: 'vibrant',
+        privacy: privacy || 'unlisted', // Default to unlisted for testing
+        language: 'ko',
+        skipVideoGeneration: false,
+        skipUpload: skipUpload || false
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Complete pipeline test completed',
+      data: {
+        jobId: result.jobId,
+        topic: result.topic.keyword,
+        script: {
+          length: result.script.fullScript.length,
+          hook: result.script.hook
+        },
+        audio: {
+          duration: result.audio.duration,
+          filePath: result.audio.audioFilePath
+        },
+        video: result.video ? {
+          filePath: result.video.videoFilePath,
+          duration: result.video.duration,
+          provider: result.video.provider
+        } : null,
+        thumbnails: result.thumbnails ? {
+          testId: result.thumbnails.testConfiguration.testId,
+          thumbnailAPath: result.thumbnails.thumbnailA.filePath,
+          thumbnailBPath: result.thumbnails.thumbnailB.filePath
+        } : null,
+        upload: result.upload ? {
+          videoId: result.upload.videoId,
+          videoUrl: result.upload.videoUrl,
+          status: result.upload.status
+        } : null,
+        status: result.status,
+        totalTime: result.totalProcessingTime
+      }
+    });
+  } catch (error) {
+    logger.error('API complete pipeline test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test complete pipeline',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export { router as apiRoutes };

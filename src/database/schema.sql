@@ -59,14 +59,30 @@ CREATE TABLE IF NOT EXISTS youtube_uploads (
     title TEXT NOT NULL,
     description TEXT,
     tags TEXT, -- JSON array
-    thumbnail_a_url TEXT,
-    thumbnail_b_url TEXT,
-    selected_thumbnail TEXT, -- 'a' or 'b'
+    thumbnail_a_path TEXT, -- Local path to thumbnail A
+    thumbnail_b_path TEXT, -- Local path to thumbnail B
+    thumbnail_a_url TEXT, -- YouTube URL for thumbnail A
+    thumbnail_b_url TEXT, -- YouTube URL for thumbnail B
+    thumbnail_test_id TEXT, -- A/B test identifier
+    thumbnail_test_status TEXT, -- 'running', 'completed', 'inconclusive'
+    selected_thumbnail TEXT, -- 'a', 'b', or 'inconclusive'
+    thumbnail_switch_time DATETIME, -- When thumbnail B was activated
+    thumbnail_test_confidence REAL, -- Statistical confidence in result
     upload_status TEXT NOT NULL, -- 'uploading', 'processing', 'live', 'failed'
+    privacy_status TEXT, -- 'public', 'unlisted', 'private'
+    category_id TEXT, -- YouTube category ID
+    language TEXT DEFAULT 'ko',
+    upload_time_ms INTEGER, -- Upload duration in milliseconds
     views INTEGER DEFAULT 0,
     likes INTEGER DEFAULT 0,
+    dislikes INTEGER DEFAULT 0,
     comments INTEGER DEFAULT 0,
+    shares INTEGER DEFAULT 0,
+    subscribers_gained INTEGER DEFAULT 0,
+    watch_time_minutes INTEGER DEFAULT 0,
+    average_view_duration REAL DEFAULT 0,
     ctr_percentage REAL DEFAULT 0,
+    impressions INTEGER DEFAULT 0,
     engagement_percentage REAL DEFAULT 0,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     metrics_last_updated DATETIME,

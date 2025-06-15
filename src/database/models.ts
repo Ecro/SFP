@@ -55,14 +55,30 @@ export interface YouTubeUpload {
   title: string;
   description?: string;
   tags?: string; // JSON array
+  thumbnail_a_path?: string;
+  thumbnail_b_path?: string;
   thumbnail_a_url?: string;
   thumbnail_b_url?: string;
-  selected_thumbnail?: 'a' | 'b';
+  thumbnail_test_id?: string;
+  thumbnail_test_status?: 'running' | 'completed' | 'inconclusive';
+  selected_thumbnail?: 'a' | 'b' | 'inconclusive';
+  thumbnail_switch_time?: string;
+  thumbnail_test_confidence?: number;
   upload_status: 'uploading' | 'processing' | 'live' | 'failed';
+  privacy_status?: 'public' | 'unlisted' | 'private';
+  category_id?: string;
+  language?: string;
+  upload_time_ms?: number;
   views?: number;
   likes?: number;
+  dislikes?: number;
   comments?: number;
+  shares?: number;
+  subscribers_gained?: number;
+  watch_time_minutes?: number;
+  average_view_duration?: number;
   ctr_percentage?: number;
+  impressions?: number;
   engagement_percentage?: number;
   uploaded_at?: string;
   metrics_last_updated?: string;
@@ -319,6 +335,107 @@ export class SystemLogModel {
     return await this.db.all<SystemLog>(
       'SELECT * FROM system_logs WHERE context = ? ORDER BY timestamp DESC LIMIT ?',
       [context, limit]
+    );
+  }
+}
+
+export class YouTubeUploadModel {
+  private db: Database;
+
+  constructor() {
+    this.db = Database.getInstance();
+  }
+
+  async create(upload: YouTubeUpload): Promise<number> {
+    const result = await this.db.run(
+      `INSERT INTO youtube_uploads (
+        video_job_id, video_id, title, description, tags,
+        thumbnail_a_path, thumbnail_b_path, thumbnail_a_url, thumbnail_b_url,
+        thumbnail_test_id, thumbnail_test_status, selected_thumbnail, thumbnail_switch_time, thumbnail_test_confidence,
+        upload_status, privacy_status, category_id, language, upload_time_ms,
+        views, likes, dislikes, comments, shares, subscribers_gained,
+        watch_time_minutes, average_view_duration, ctr_percentage, impressions, engagement_percentage,
+        metrics_last_updated, error_message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        upload.video_job_id, upload.video_id, upload.title, upload.description, upload.tags,
+        upload.thumbnail_a_path, upload.thumbnail_b_path, upload.thumbnail_a_url, upload.thumbnail_b_url,
+        upload.thumbnail_test_id, upload.thumbnail_test_status, upload.selected_thumbnail, upload.thumbnail_switch_time, upload.thumbnail_test_confidence,
+        upload.upload_status, upload.privacy_status, upload.category_id, upload.language, upload.upload_time_ms,
+        upload.views, upload.likes, upload.dislikes, upload.comments, upload.shares, upload.subscribers_gained,
+        upload.watch_time_minutes, upload.average_view_duration, upload.ctr_percentage, upload.impressions, upload.engagement_percentage,
+        upload.metrics_last_updated, upload.error_message
+      ]
+    );
+    return result.lastID!;
+  }
+
+  async update(id: number, updates: Partial<YouTubeUpload>): Promise<void> {
+    const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(updates);
+    
+    await this.db.run(
+      `UPDATE youtube_uploads SET ${fields} WHERE id = ?`,
+      [...values, id]
+    );
+  }
+
+  async getById(id: number): Promise<YouTubeUpload | undefined> {
+    return await this.db.get<YouTubeUpload>('SELECT * FROM youtube_uploads WHERE id = ?', [id]);
+  }
+
+  async getByVideoId(videoId: string): Promise<YouTubeUpload | undefined> {
+    return await this.db.get<YouTubeUpload>('SELECT * FROM youtube_uploads WHERE video_id = ?', [videoId]);
+  }
+
+  async getByJobId(videoJobId: number): Promise<YouTubeUpload | undefined> {
+    return await this.db.get<YouTubeUpload>('SELECT * FROM youtube_uploads WHERE video_job_id = ?', [videoJobId]);
+  }
+
+  async getRecent(limit: number = 10): Promise<YouTubeUpload[]> {
+    return await this.db.all<YouTubeUpload>(
+      'SELECT * FROM youtube_uploads ORDER BY uploaded_at DESC LIMIT ?',
+      [limit]
+    );
+  }
+
+  async getByStatus(status: string): Promise<YouTubeUpload[]> {
+    return await this.db.all<YouTubeUpload>(
+      'SELECT * FROM youtube_uploads WHERE upload_status = ? ORDER BY uploaded_at DESC',
+      [status]
+    );
+  }
+
+  async getActiveThumbnailTests(): Promise<YouTubeUpload[]> {
+    return await this.db.all<YouTubeUpload>(
+      'SELECT * FROM youtube_uploads WHERE thumbnail_test_status = "running" ORDER BY uploaded_at DESC',
+      []
+    );
+  }
+
+  async getVideoMetrics(days: number = 7): Promise<any[]> {
+    return await this.db.all(
+      `SELECT 
+        video_id, title, views, likes, comments, ctr_percentage, 
+        engagement_percentage, uploaded_at, privacy_status
+       FROM youtube_uploads 
+       WHERE upload_status = 'live' 
+         AND uploaded_at >= datetime('now', '-${days} days')
+       ORDER BY views DESC`,
+      []
+    );
+  }
+
+  async getThumbnailTestResults(): Promise<any[]> {
+    return await this.db.all(
+      `SELECT 
+        video_id, title, thumbnail_test_id, selected_thumbnail, 
+        thumbnail_test_confidence, thumbnail_test_status,
+        ctr_percentage, views, uploaded_at
+       FROM youtube_uploads 
+       WHERE thumbnail_test_id IS NOT NULL
+       ORDER BY uploaded_at DESC`,
+      []
     );
   }
 }

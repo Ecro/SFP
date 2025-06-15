@@ -3,7 +3,9 @@ import { TrendsService, TrendTopic } from './trendsService';
 import { ScriptGenerationService, GeneratedScript } from './scriptGenerationService';
 import { TextToSpeechService, TTSResult } from './textToSpeechService';
 import { VideoSynthesisService, VideoGenerationResult } from './videoSynthesisService';
-import { VideoJobModel, TrendRunModel, SystemLogModel } from '../database/models';
+import { YouTubeUploadService, YouTubeUploadResult } from './youtubeUploadService';
+import { ThumbnailGenerationService, ThumbnailVariants } from './thumbnailGenerationService';
+import { VideoJobModel, TrendRunModel, SystemLogModel, YouTubeUploadModel } from '../database/models';
 
 const logger = createLogger('VideoJobOrchestrator');
 
@@ -15,6 +17,9 @@ export interface VideoJobConfig {
   customCategory?: string;
   videoStyle?: 'cinematic' | 'natural' | 'animated' | 'documentary';
   skipVideoGeneration?: boolean; // For testing narration only
+  skipUpload?: boolean; // For testing video generation only
+  thumbnailStyle?: 'vibrant' | 'minimalist' | 'bold' | 'educational' | 'entertainment';
+  privacy?: 'private' | 'public' | 'unlisted';
 }
 
 export interface VideoJobResult {
@@ -24,6 +29,8 @@ export interface VideoJobResult {
   script: GeneratedScript;
   audio: TTSResult;
   video?: VideoGenerationResult;
+  thumbnails?: ThumbnailVariants;
+  upload?: YouTubeUploadResult;
   status: 'completed' | 'failed';
   totalProcessingTime: number;
   error?: string;
@@ -31,7 +38,7 @@ export interface VideoJobResult {
 
 export interface JobProgress {
   jobId: number;
-  currentStep: 'trend_discovery' | 'script_generation' | 'narration' | 'video_synthesis' | 'completed' | 'failed';
+  currentStep: 'trend_discovery' | 'script_generation' | 'narration' | 'video_synthesis' | 'thumbnail_generation' | 'youtube_upload' | 'completed' | 'failed';
   progress: number; // 0-100
   message: string;
   startTime: Date;
@@ -43,9 +50,12 @@ export class VideoJobOrchestrator {
   private scriptService: ScriptGenerationService;
   private ttsService: TextToSpeechService;
   private videoSynthesisService: VideoSynthesisService;
+  private youtubeUploadService: YouTubeUploadService;
+  private thumbnailService: ThumbnailGenerationService;
   private videoJobModel: VideoJobModel;
   private trendRunModel: TrendRunModel;
   private systemLogModel: SystemLogModel;
+  private youtubeUploadModel: YouTubeUploadModel;
   private activeJobs: Map<number, JobProgress> = new Map();
 
   constructor() {
@@ -53,9 +63,12 @@ export class VideoJobOrchestrator {
     this.scriptService = new ScriptGenerationService();
     this.ttsService = new TextToSpeechService();
     this.videoSynthesisService = new VideoSynthesisService();
+    this.youtubeUploadService = new YouTubeUploadService();
+    this.thumbnailService = new ThumbnailGenerationService();
     this.videoJobModel = new VideoJobModel();
     this.trendRunModel = new TrendRunModel();
     this.systemLogModel = new SystemLogModel();
+    this.youtubeUploadModel = new YouTubeUploadModel();
     
     logger.info('VideoJobOrchestrator initialized');
   }
@@ -81,7 +94,7 @@ export class VideoJobOrchestrator {
       });
 
       // Initialize job progress tracking
-      this.updateJobProgress(jobId, 'script_generation', 20, 'Generating script...');
+      this.updateJobProgress(jobId, 'script_generation', 15, 'Generating script...');
 
       // Step 3: Generate script
       const script = await this.generateScript(topic, config);
@@ -92,7 +105,7 @@ export class VideoJobOrchestrator {
         script_generation_time_ms: script.generationTime
       });
 
-      this.updateJobProgress(jobId, 'narration', 40, 'Generating narration...');
+      this.updateJobProgress(jobId, 'narration', 30, 'Generating narration...');
 
       // Step 4: Generate narration
       const audio = await this.generateNarration(script, config);
@@ -108,7 +121,7 @@ export class VideoJobOrchestrator {
       // Step 5: Generate video (if not skipped)
       let video: VideoGenerationResult | undefined;
       if (!config.skipVideoGeneration) {
-        this.updateJobProgress(jobId, 'video_synthesis', 70, 'Generating video...');
+        this.updateJobProgress(jobId, 'video_synthesis', 50, 'Generating video...');
         
         video = await this.generateVideo(script, config);
         
@@ -123,6 +136,22 @@ export class VideoJobOrchestrator {
           video_resolution: video.resolution,
           status: 'video_synthesis'
         });
+      }
+
+      // Step 6: Generate thumbnails
+      let thumbnails: ThumbnailVariants | undefined;
+      if (video && !config.skipUpload) {
+        this.updateJobProgress(jobId, 'thumbnail_generation', 70, 'Generating thumbnails...');
+        
+        thumbnails = await this.generateThumbnails(script, topic, config);
+      }
+
+      // Step 7: Upload to YouTube (if not skipped)
+      let upload: YouTubeUploadResult | undefined;
+      if (video && !config.skipUpload) {
+        this.updateJobProgress(jobId, 'youtube_upload', 85, 'Uploading to YouTube...');
+        
+        upload = await this.uploadToYouTube(video, script, topic, thumbnails, config);
       }
 
       // Mark as completed
@@ -154,6 +183,8 @@ export class VideoJobOrchestrator {
         script,
         audio,
         video,
+        thumbnails,
+        upload,
         status: 'completed',
         totalProcessingTime
       };
@@ -268,6 +299,77 @@ export class VideoJobOrchestrator {
     };
 
     return await this.videoSynthesisService.generateVideo(videoOptions);
+  }
+
+  private async generateThumbnails(script: GeneratedScript, topic: TrendTopic, config: VideoJobConfig): Promise<ThumbnailVariants> {
+    const thumbnailOptions = {
+      title: script.hook || topic.keyword,
+      topic: topic.keyword,
+      style: config.thumbnailStyle || this.mapContentStyleToThumbnailStyle(config.contentStyle),
+      language: config.language || 'ko',
+      backgroundType: 'gradient' as const,
+      includeEmoji: true
+    };
+
+    return await this.thumbnailService.generateThumbnailVariants(thumbnailOptions);
+  }
+
+  private async uploadToYouTube(
+    video: VideoGenerationResult, 
+    script: GeneratedScript, 
+    topic: TrendTopic, 
+    thumbnails: ThumbnailVariants | undefined,
+    config: VideoJobConfig
+  ): Promise<YouTubeUploadResult> {
+    // Generate optimized metadata
+    const metadata = await this.youtubeUploadService.generateVideoMetadata(
+      topic.keyword,
+      script.fullScript,
+      config.language || 'ko'
+    );
+
+    const uploadOptions = {
+      videoFilePath: video.videoFilePath,
+      title: metadata.title,
+      description: metadata.description,
+      tags: metadata.tags,
+      thumbnailAPath: thumbnails?.thumbnailA.filePath,
+      thumbnailBPath: thumbnails?.thumbnailB.filePath,
+      categoryId: this.getCategoryId(topic.category),
+      privacy: config.privacy || 'public',
+      language: config.language || 'ko'
+    };
+
+    return await this.youtubeUploadService.uploadVideo(uploadOptions);
+  }
+
+  private mapContentStyleToThumbnailStyle(contentStyle?: string): 'vibrant' | 'minimalist' | 'bold' | 'educational' | 'entertainment' {
+    switch (contentStyle) {
+      case 'educational': return 'educational';
+      case 'entertainment': return 'entertainment';
+      case 'news': return 'bold';
+      case 'lifestyle': return 'minimalist';
+      default: return 'vibrant';
+    }
+  }
+
+  private getCategoryId(category: string): string {
+    const categoryMap = {
+      'technology': '28', // Science & Technology
+      'education': '27', // Education
+      'entertainment': '24', // Entertainment
+      'news': '25', // News & Politics
+      'lifestyle': '26', // Howto & Style
+      'health': '26', // Howto & Style
+      'food': '26', // Howto & Style
+      'travel': '19', // Travel & Events
+      'music': '10', // Music
+      'sports': '17', // Sports
+      'gaming': '20', // Gaming
+      'general': '22' // People & Blogs
+    };
+
+    return categoryMap[category as keyof typeof categoryMap] || '22'; // Default to People & Blogs
   }
 
   private updateJobProgress(jobId: number, step: JobProgress['currentStep'], progress: number, message: string): void {
@@ -396,6 +498,9 @@ export class VideoJobOrchestrator {
       // Clean up old video files
       const deletedVideoFiles = await this.videoSynthesisService.cleanupOldVideos(48);
       
+      // Clean up old thumbnail files
+      const deletedThumbnailFiles = await this.thumbnailService.cleanupOldThumbnails(48);
+      
       // Clear old job progress data
       const now = Date.now();
       const maxAge = 60 * 60 * 1000; // 1 hour
@@ -406,7 +511,7 @@ export class VideoJobOrchestrator {
         }
       }
 
-      logger.info(`Housekeeping completed: ${deletedAudioFiles} audio files deleted, ${deletedVideoFiles} video files deleted, ${this.activeJobs.size} active jobs remaining`);
+      logger.info(`Housekeeping completed: ${deletedAudioFiles} audio files, ${deletedVideoFiles} video files, ${deletedThumbnailFiles} thumbnail files deleted, ${this.activeJobs.size} active jobs remaining`);
     } catch (error) {
       logger.error('Error during housekeeping:', error);
     }
@@ -419,6 +524,31 @@ export class VideoJobOrchestrator {
     } catch (error) {
       logger.error('Error getting video provider status:', error);
       return [];
+    }
+  }
+
+  // Method to get YouTube service status
+  async getYouTubeServiceStatus(): Promise<{ configured: boolean; healthy: boolean; channel?: any }> {
+    try {
+      const healthy = await this.youtubeUploadService.healthCheck();
+      let channel = null;
+      
+      if (healthy) {
+        try {
+          channel = await this.youtubeUploadService.getChannelInfo();
+        } catch (error) {
+          logger.debug('Could not get channel info:', error);
+        }
+      }
+      
+      return {
+        configured: healthy,
+        healthy,
+        channel
+      };
+    } catch (error) {
+      logger.error('Error checking YouTube service status:', error);
+      return { configured: false, healthy: false };
     }
   }
 
@@ -448,6 +578,85 @@ export class VideoJobOrchestrator {
       return await this.videoSynthesisService.generateVideo(videoOptions);
     } catch (error) {
       logger.error('Error creating video-only job:', error);
+      throw error;
+    }
+  }
+
+  // Method to upload existing video to YouTube
+  async uploadExistingVideo(
+    videoFilePath: string,
+    title: string,
+    description: string,
+    tags: string[],
+    config: Partial<VideoJobConfig> = {}
+  ): Promise<YouTubeUploadResult> {
+    try {
+      logger.info('Uploading existing video to YouTube');
+      
+      const uploadOptions = {
+        videoFilePath,
+        title,
+        description,
+        tags,
+        categoryId: '22', // People & Blogs
+        privacy: config.privacy || 'public',
+        language: config.language || 'ko'
+      };
+
+      const uploadResult = await this.youtubeUploadService.uploadVideo(uploadOptions);
+      
+      // Save upload data to database
+      await this.youtubeUploadModel.create({
+        video_job_id: 0, // Standalone upload, not part of a video job
+        video_id: uploadResult.videoId,
+        title: uploadResult.title,
+        description: uploadResult.description,
+        tags: JSON.stringify(uploadOptions.tags),
+        upload_status: uploadResult.status === 'uploaded' ? 'live' : uploadResult.status,
+        privacy_status: uploadOptions.privacy,
+        category_id: uploadOptions.categoryId,
+        language: uploadOptions.language,
+        upload_time_ms: uploadResult.uploadTime
+      });
+      
+      return uploadResult;
+    } catch (error) {
+      logger.error('Error uploading existing video:', error);
+      throw error;
+    }
+  }
+
+  // Method to get video metrics from YouTube
+  async getVideoMetrics(videoId: string): Promise<any> {
+    try {
+      return await this.youtubeUploadService.getVideoMetrics(videoId);
+    } catch (error) {
+      logger.error(`Error getting metrics for video ${videoId}:`, error);
+      throw error;
+    }
+  }
+
+  // Method to create thumbnails only
+  async createThumbnailsOnly(
+    title: string,
+    topic: string,
+    config: Partial<VideoJobConfig> = {}
+  ): Promise<ThumbnailVariants> {
+    try {
+      logger.info('Creating thumbnails only');
+      
+      const thumbnailOptions = {
+        title,
+        topic,
+        style: config.thumbnailStyle || 'vibrant',
+        language: config.language || 'ko',
+        backgroundType: 'gradient' as const,
+        includeEmoji: true
+      };
+
+      return await this.thumbnailService.generateThumbnailVariants(thumbnailOptions);
+    } catch (error) {
+      logger.error('Error creating thumbnails:', error);
       throw error;
     }
   }
