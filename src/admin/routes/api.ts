@@ -525,4 +525,121 @@ router.post('/test/script', async (req, res) => {
   }
 });
 
+// Video synthesis endpoints
+
+// Get video synthesis provider status
+router.get('/video/providers', async (req, res) => {
+  try {
+    const providers = await videoOrchestrator.getVideoProviderStatus();
+    
+    res.json({
+      success: true,
+      data: providers
+    });
+  } catch (error) {
+    logger.error('API video providers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get video provider status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Create video-only job (for existing audio)
+router.post('/video/create', async (req, res) => {
+  try {
+    const { scriptText, audioFilePath, videoStyle, targetDuration } = req.body;
+    
+    if (!scriptText || !audioFilePath) {
+      return res.status(400).json({
+        success: false,
+        message: 'Script text and audio file path are required'
+      });
+    }
+    
+    logger.info('Creating video-only job via API', { scriptText: scriptText.substring(0, 100), audioFilePath });
+    
+    const result = await videoOrchestrator.createVideoOnlyJob(
+      scriptText,
+      audioFilePath,
+      {
+        videoStyle: videoStyle || 'cinematic',
+        targetDuration: targetDuration || 58
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Video generation completed successfully',
+      data: {
+        videoFilePath: result.videoFilePath,
+        duration: result.duration,
+        provider: result.provider,
+        generationTime: result.generationTime
+      }
+    });
+  } catch (error) {
+    logger.error('API video creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create video',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Test video generation with sample content
+router.post('/test/video', async (req, res) => {
+  try {
+    const { topic, style, duration } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
+      });
+    }
+    
+    logger.info('Testing video generation via API', { topic, style });
+    
+    // Create a complete video job including video synthesis
+    const result = await videoOrchestrator.createJobWithManualTopic(
+      topic,
+      'general',
+      {
+        videoStyle: style || 'cinematic',
+        targetDuration: duration || 58,
+        skipVideoGeneration: false // Ensure video is generated
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Video generation test completed',
+      data: {
+        jobId: result.jobId,
+        script: result.script,
+        audio: {
+          filePath: result.audio.audioFilePath,
+          duration: result.audio.duration
+        },
+        video: result.video ? {
+          filePath: result.video.videoFilePath,
+          duration: result.video.duration,
+          provider: result.video.provider,
+          generationTime: result.video.generationTime
+        } : null
+      }
+    });
+  } catch (error) {
+    logger.error('API video test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test video generation',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export { router as apiRoutes };

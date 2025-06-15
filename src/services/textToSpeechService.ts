@@ -1,4 +1,4 @@
-import { ElevenLabsApi, ElevenLabsApiConfig } from 'elevenlabs';
+const { ElevenLabs } = require('elevenlabs');
 import { createLogger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -26,7 +26,7 @@ export interface TTSResult {
 }
 
 export class TextToSpeechService {
-  private client: ElevenLabsApi;
+  private client: any;
   private readonly outputDir: string;
   private readonly maxRetries: number = 3;
 
@@ -66,11 +66,9 @@ export class TextToSpeechService {
       throw new Error('ELEVENLABS_API_KEY environment variable is required');
     }
 
-    const config: ElevenLabsApiConfig = {
+    this.client = new ElevenLabs({
       apiKey: apiKey
-    };
-
-    this.client = new ElevenLabsApi(config);
+    });
     this.outputDir = process.env.TTS_OUTPUT_DIR || './data/audio';
     
     // Ensure output directory exists
@@ -119,7 +117,8 @@ export class TextToSpeechService {
     const style = this.inferContentStyle(options.text);
     
     // Use custom voice settings if provided, otherwise use profile defaults
-    const profile = this.voiceProfiles[language]?.[style] || this.voiceProfiles.ko.educational;
+    const profiles = this.voiceProfiles[language as keyof typeof this.voiceProfiles];
+    const profile = profiles?.[style] || this.voiceProfiles.ko.educational;
     
     return {
       voiceId: options.voiceId || profile.voiceId,

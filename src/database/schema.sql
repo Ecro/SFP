@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS video_jobs (
     narration_generation_time_ms INTEGER,
     video_file_path TEXT,
     video_generation_time_ms INTEGER,
+    video_provider TEXT, -- 'luma', 'runway', 'pika'
+    video_task_id TEXT, -- Provider-specific task ID
+    video_prompt TEXT, -- Generated video prompt
+    video_style TEXT, -- 'cinematic', 'natural', 'animated', 'documentary'
+    video_resolution TEXT, -- '1080x1920'
     total_duration_seconds REAL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME,

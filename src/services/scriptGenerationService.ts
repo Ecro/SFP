@@ -141,8 +141,8 @@ Generate a script that will perform well on YouTube Shorts and capture audience 
 
         if (response.content && response.content.length > 0) {
           const textContent = response.content[0];
-          if (textContent.type === 'text') {
-            return textContent.text;
+          if (textContent && textContent.type === 'text') {
+            return (textContent as any).text;
           }
         }
 

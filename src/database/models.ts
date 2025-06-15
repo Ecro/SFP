@@ -37,6 +37,11 @@ export interface VideoJob {
   narration_generation_time_ms?: number;
   video_file_path?: string;
   video_generation_time_ms?: number;
+  video_provider?: 'luma' | 'runway' | 'pika';
+  video_task_id?: string;
+  video_prompt?: string;
+  video_style?: 'cinematic' | 'natural' | 'animated' | 'documentary';
+  video_resolution?: string;
   total_duration_seconds?: number;
   created_at?: string;
   completed_at?: string;
@@ -219,8 +224,8 @@ export class VideoJobModel {
 
   async create(job: VideoJob): Promise<number> {
     const result = await this.db.run(
-      `INSERT INTO video_jobs (trend_run_id, status, topic, script_text, script_generation_time_ms, narration_file_path, narration_generation_time_ms, video_file_path, video_generation_time_ms, total_duration_seconds, completed_at, error_message)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO video_jobs (trend_run_id, status, topic, script_text, script_generation_time_ms, narration_file_path, narration_generation_time_ms, video_file_path, video_generation_time_ms, video_provider, video_task_id, video_prompt, video_style, video_resolution, total_duration_seconds, completed_at, error_message)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         job.trend_run_id,
         job.status,
@@ -231,6 +236,11 @@ export class VideoJobModel {
         job.narration_generation_time_ms,
         job.video_file_path,
         job.video_generation_time_ms,
+        job.video_provider,
+        job.video_task_id,
+        job.video_prompt,
+        job.video_style,
+        job.video_resolution,
         job.total_duration_seconds,
         job.completed_at,
         job.error_message

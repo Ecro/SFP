@@ -2,6 +2,7 @@ import { createLogger } from '../utils/logger';
 import { TrendsService, TrendTopic } from './trendsService';
 import { ScriptGenerationService, GeneratedScript } from './scriptGenerationService';
 import { TextToSpeechService, TTSResult } from './textToSpeechService';
+import { VideoSynthesisService, VideoGenerationResult } from './videoSynthesisService';
 import { VideoJobModel, TrendRunModel, SystemLogModel } from '../database/models';
 
 const logger = createLogger('VideoJobOrchestrator');
@@ -12,6 +13,8 @@ export interface VideoJobConfig {
   language?: 'ko' | 'en';
   customTopic?: string;
   customCategory?: string;
+  videoStyle?: 'cinematic' | 'natural' | 'animated' | 'documentary';
+  skipVideoGeneration?: boolean; // For testing narration only
 }
 
 export interface VideoJobResult {
@@ -20,6 +23,7 @@ export interface VideoJobResult {
   topic: TrendTopic;
   script: GeneratedScript;
   audio: TTSResult;
+  video?: VideoGenerationResult;
   status: 'completed' | 'failed';
   totalProcessingTime: number;
   error?: string;
@@ -27,7 +31,7 @@ export interface VideoJobResult {
 
 export interface JobProgress {
   jobId: number;
-  currentStep: 'trend_discovery' | 'script_generation' | 'narration' | 'completed' | 'failed';
+  currentStep: 'trend_discovery' | 'script_generation' | 'narration' | 'video_synthesis' | 'completed' | 'failed';
   progress: number; // 0-100
   message: string;
   startTime: Date;
@@ -38,6 +42,7 @@ export class VideoJobOrchestrator {
   private trendsService: TrendsService;
   private scriptService: ScriptGenerationService;
   private ttsService: TextToSpeechService;
+  private videoSynthesisService: VideoSynthesisService;
   private videoJobModel: VideoJobModel;
   private trendRunModel: TrendRunModel;
   private systemLogModel: SystemLogModel;
@@ -47,6 +52,7 @@ export class VideoJobOrchestrator {
     this.trendsService = new TrendsService();
     this.scriptService = new ScriptGenerationService();
     this.ttsService = new TextToSpeechService();
+    this.videoSynthesisService = new VideoSynthesisService();
     this.videoJobModel = new VideoJobModel();
     this.trendRunModel = new TrendRunModel();
     this.systemLogModel = new SystemLogModel();
@@ -68,14 +74,14 @@ export class VideoJobOrchestrator {
 
       // Step 2: Create video job record
       jobId = await this.videoJobModel.create({
-        trend_run_id: trendRunId,
+        trend_run_id: trendRunId || undefined,
         status: 'script_generation',
         topic: topic.keyword,
         created_at: new Date().toISOString()
       });
 
       // Initialize job progress tracking
-      this.updateJobProgress(jobId, 'script_generation', 25, 'Generating script...');
+      this.updateJobProgress(jobId, 'script_generation', 20, 'Generating script...');
 
       // Step 3: Generate script
       const script = await this.generateScript(topic, config);
@@ -86,7 +92,7 @@ export class VideoJobOrchestrator {
         script_generation_time_ms: script.generationTime
       });
 
-      this.updateJobProgress(jobId, 'narration', 60, 'Generating narration...');
+      this.updateJobProgress(jobId, 'narration', 40, 'Generating narration...');
 
       // Step 4: Generate narration
       const audio = await this.generateNarration(script, config);
@@ -96,6 +102,31 @@ export class VideoJobOrchestrator {
         narration_file_path: audio.audioFilePath,
         narration_generation_time_ms: audio.generationTime,
         total_duration_seconds: audio.duration,
+        status: 'narration'
+      });
+
+      // Step 5: Generate video (if not skipped)
+      let video: VideoGenerationResult | undefined;
+      if (!config.skipVideoGeneration) {
+        this.updateJobProgress(jobId, 'video_synthesis', 70, 'Generating video...');
+        
+        video = await this.generateVideo(script, config);
+        
+        // Update job with video details
+        await this.videoJobModel.update(jobId, {
+          video_file_path: video.videoFilePath,
+          video_generation_time_ms: video.generationTime,
+          video_provider: video.provider,
+          video_task_id: video.taskId,
+          video_prompt: video.prompt,
+          video_style: config.videoStyle || 'cinematic',
+          video_resolution: video.resolution,
+          status: 'video_synthesis'
+        });
+      }
+
+      // Mark as completed
+      await this.videoJobModel.update(jobId, {
         status: 'completed',
         completed_at: new Date().toISOString()
       });
@@ -105,10 +136,12 @@ export class VideoJobOrchestrator {
       this.updateJobProgress(jobId, 'completed', 100, 'Video job completed successfully');
 
       // Log success
-      await this.logJobEvent(jobId, 'info', 'Video job completed successfully', {
+      await this.logJobEvent(jobId, 'info' as const, 'Video job completed successfully', {
         topic: topic.keyword,
         scriptLength: script.fullScript.length,
         audioDuration: audio.duration,
+        videoGenerated: !!video,
+        videoPath: video?.videoFilePath,
         totalTime: totalProcessingTime
       });
 
@@ -116,10 +149,11 @@ export class VideoJobOrchestrator {
 
       return {
         jobId,
-        trendRunId,
+        trendRunId: trendRunId || undefined,
         topic,
         script,
         audio,
+        video,
         status: 'completed',
         totalProcessingTime
       };
@@ -139,7 +173,7 @@ export class VideoJobOrchestrator {
         this.updateJobProgress(jobId, 'failed', 0, `Job failed: ${errorMessage}`);
 
         // Log error
-        await this.logJobEvent(jobId, 'error', `Video job failed: ${errorMessage}`, {
+        await this.logJobEvent(jobId, 'error' as const, `Video job failed: ${errorMessage}`, {
           error: errorMessage,
           config
         });
@@ -148,7 +182,7 @@ export class VideoJobOrchestrator {
       throw error;
     } finally {
       // Clean up job progress tracking
-      if (jobId) {
+      if (jobId !== null) {
         setTimeout(() => {
           this.activeJobs.delete(jobId!);
         }, 60000); // Keep for 1 minute after completion
@@ -218,6 +252,24 @@ export class VideoJobOrchestrator {
     return await this.ttsService.generateSpeech(ttsOptions);
   }
 
+  private async generateVideo(script: GeneratedScript, config: VideoJobConfig): Promise<VideoGenerationResult> {
+    // Generate video prompt from script content
+    const videoPrompt = this.videoSynthesisService.generateVideoPrompt(
+      script.fullScript, 
+      config.videoStyle || 'cinematic'
+    );
+    
+    const videoOptions = {
+      prompt: videoPrompt,
+      aspectRatio: '9:16' as const,
+      duration: config.targetDuration || 58,
+      style: config.videoStyle || 'cinematic',
+      quality: 'high' as const
+    };
+
+    return await this.videoSynthesisService.generateVideo(videoOptions);
+  }
+
   private updateJobProgress(jobId: number, step: JobProgress['currentStep'], progress: number, message: string): void {
     const existingJob = this.activeJobs.get(jobId);
     const startTime = existingJob?.startTime || new Date();
@@ -242,7 +294,7 @@ export class VideoJobOrchestrator {
     return new Date(startTime.getTime() + estimated);
   }
 
-  private async logJobEvent(jobId: number, level: string, message: string, data?: any): Promise<void> {
+  private async logJobEvent(jobId: number, level: 'info' | 'warn' | 'error' | 'debug', message: string, data?: any): Promise<void> {
     try {
       await this.systemLogModel.create({
         level,
@@ -339,7 +391,10 @@ export class VideoJobOrchestrator {
     
     try {
       // Clean up old TTS files
-      const deletedFiles = await this.ttsService.cleanupOldFiles(24);
+      const deletedAudioFiles = await this.ttsService.cleanupOldFiles(24);
+      
+      // Clean up old video files
+      const deletedVideoFiles = await this.videoSynthesisService.cleanupOldVideos(48);
       
       // Clear old job progress data
       const now = Date.now();
@@ -351,9 +406,49 @@ export class VideoJobOrchestrator {
         }
       }
 
-      logger.info(`Housekeeping completed: ${deletedFiles} files deleted, ${this.activeJobs.size} active jobs remaining`);
+      logger.info(`Housekeeping completed: ${deletedAudioFiles} audio files deleted, ${deletedVideoFiles} video files deleted, ${this.activeJobs.size} active jobs remaining`);
     } catch (error) {
       logger.error('Error during housekeeping:', error);
+    }
+  }
+
+  // Method to get video synthesis provider status
+  async getVideoProviderStatus(): Promise<any> {
+    try {
+      return await this.videoSynthesisService.getProviderStatus();
+    } catch (error) {
+      logger.error('Error getting video provider status:', error);
+      return [];
+    }
+  }
+
+  // Method to create video-only job (for existing audio)
+  async createVideoOnlyJob(
+    scriptText: string,
+    audioFilePath: string,
+    config: Omit<VideoJobConfig, 'customTopic'> = {}
+  ): Promise<VideoGenerationResult> {
+    try {
+      logger.info('Creating video-only job for existing audio');
+      
+      const videoPrompt = this.videoSynthesisService.generateVideoPrompt(
+        scriptText,
+        config.videoStyle || 'cinematic'
+      );
+      
+      const videoOptions = {
+        prompt: videoPrompt,
+        aspectRatio: '9:16' as const,
+        duration: config.targetDuration || 58,
+        style: config.videoStyle || 'cinematic',
+        quality: 'high' as const,
+        audioFilePath
+      };
+
+      return await this.videoSynthesisService.generateVideo(videoOptions);
+    } catch (error) {
+      logger.error('Error creating video-only job:', error);
+      throw error;
     }
   }
 }
