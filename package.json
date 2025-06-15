@@ -4,7 +4,8 @@
   "description": "AI-driven pipeline for automated short-form video generation and publishing",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "cp -r src/database/schema.sql dist/database/ && cp -r src/admin/views dist/admin/",
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
     "test": "jest",
@@ -14,19 +15,25 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
     "axios": "^1.6.0",
+    "express": "^4.18.0",
+    "ejs": "^3.1.9",
     "form-data": "^4.0.0",
     "google-trends-api": "^4.9.2",
     "googleapis": "^128.0.0",
     "js-yaml": "^4.1.0",
     "node-cron": "^3.0.3",
     "redis": "^4.6.0",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/ejs": "^3.1.5",
     "@types/jest": "^29.5.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.10.0",
     "@types/node-cron": "^3.0.11",
+    "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",
     "eslint": "^8.54.0",

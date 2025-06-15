@@ -1,0 +1,343 @@
+import { Router } from 'express';
+import { TrendRunModel, TrendingTopicModel, VideoJobModel, SystemLogModel } from '../../database/models';
+import { TrendCollector } from '../../jobs/trendCollector';
+import { createLogger } from '../../utils/logger';
+
+const router = Router();
+const logger = createLogger('ApiRoutes');
+
+// Initialize models
+const trendRunModel = new TrendRunModel();
+const trendingTopicModel = new TrendingTopicModel();
+const videoJobModel = new VideoJobModel();
+const systemLogModel = new SystemLogModel();
+
+// Initialize trend collector
+const trendCollector = new TrendCollector();
+
+// Manual trigger for trend discovery
+router.post('/trigger/trends', async (req, res) => {
+  try {
+    logger.info('Manual trend discovery triggered via API');
+    
+    const result = await trendCollector.runOnce();
+    
+    if (result) {
+      res.json({
+        success: true,
+        message: 'Trend discovery completed successfully',
+        data: {
+          selectedTopic: result.selectedTopic?.keyword,
+          topicsFound: result.topics.length,
+          timestamp: result.timestamp
+        }
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'Trend discovery failed or returned no results'
+      });
+    }
+  } catch (error) {
+    logger.error('API trend trigger error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to trigger trend discovery',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get current system status
+router.get('/status', async (req, res) => {
+  try {
+    const [
+      recentTrend,
+      pendingJobs,
+      runningJobs,
+      errorLogs
+    ] = await Promise.all([
+      trendRunModel.getRecent(1),
+      videoJobModel.getByStatus('pending'),
+      videoJobModel.getByStatus('script_generation'),
+      systemLogModel.getByLevel('error', 5)
+    ]);
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      lastTrendRun: recentTrend[0] || null,
+      pipeline: {
+        pendingJobs: pendingJobs.length,
+        runningJobs: runningJobs.length
+      },
+      recentErrors: errorLogs.length,
+      status: 'healthy'
+    });
+  } catch (error) {
+    logger.error('API status error:', error);
+    res.status(500).json({
+      timestamp: new Date().toISOString(),
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get trend statistics
+router.get('/stats/trends', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days as string) || 7;
+    
+    const [
+      successRate,
+      topKeywords,
+      recentTrends
+    ] = await Promise.all([
+      trendRunModel.getSuccessRate(days),
+      trendingTopicModel.getTopKeywords(days, 10),
+      trendRunModel.getRecent(days * 2) // Get more data for chart
+    ]);
+
+    // Prepare chart data
+    const chartData = recentTrends.slice(0, days).reverse().map(trend => ({
+      date: trend.timestamp?.split('T')[0],
+      success: trend.status === 'completed' ? 1 : 0,
+      topicsFound: trend.topics_found || 0,
+      executionTime: trend.execution_time_ms || 0
+    }));
+
+    res.json({
+      successRate,
+      topKeywords,
+      chartData,
+      summary: {
+        totalRuns: recentTrends.length,
+        successfulRuns: recentTrends.filter(t => t.status === 'completed').length,
+        averageTopics: recentTrends.reduce((sum, t) => sum + (t.topics_found || 0), 0) / recentTrends.length
+      }
+    });
+  } catch (error) {
+    logger.error('API trend stats error:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to get trend statistics'
+    });
+  }
+});
+
+// Get recent logs with filtering
+router.get('/logs', async (req, res) => {
+  try {
+    const level = req.query.level as string;
+    const context = req.query.context as string;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const since = req.query.since as string; // ISO timestamp
+
+    let logs;
+    if (level && level !== 'all') {
+      logs = await systemLogModel.getByLevel(level, limit);
+    } else if (context && context !== 'all') {
+      logs = await systemLogModel.getByContext(context, limit);
+    } else {
+      logs = await systemLogModel.getRecent(limit);
+    }
+
+    // Filter by timestamp if provided
+    if (since) {
+      const sinceDate = new Date(since);
+      logs = logs.filter(log => new Date(log.timestamp || 0) > sinceDate);
+    }
+
+    res.json({
+      logs,
+      total: logs.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('API logs error:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to get logs'
+    });
+  }
+});
+
+// Get pipeline status details
+router.get('/pipeline', async (req, res) => {
+  try {
+    const [
+      pendingJobs,
+      runningJobs,
+      completedJobs,
+      failedJobs
+    ] = await Promise.all([
+      videoJobModel.getByStatus('pending'),
+      videoJobModel.getByStatus('script_generation'),
+      videoJobModel.getByStatus('completed'),
+      videoJobModel.getByStatus('failed')
+    ]);
+
+    const allJobs = [...runningJobs, ...pendingJobs, ...completedJobs.slice(0, 5), ...failedJobs.slice(0, 5)];
+
+    res.json({
+      stats: {
+        pending: pendingJobs.length,
+        running: runningJobs.length,
+        completed: completedJobs.length,
+        failed: failedJobs.length
+      },
+      jobs: allJobs,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('API pipeline error:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to get pipeline status'
+    });
+  }
+});
+
+// Test API endpoints
+router.post('/test/database', async (req, res) => {
+  try {
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    const healthy = await db.healthCheck();
+    
+    res.json({
+      success: healthy,
+      message: healthy ? 'Database connection healthy' : 'Database connection failed',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database test failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+router.post('/test/trends-api', async (req, res) => {
+  try {
+    const googleTrends = require('google-trends-api');
+    
+    const testResponse = await googleTrends.interestOverTime({
+      keyword: 'test',
+      geo: 'KR',
+      startTime: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    const isWorking = !testResponse.startsWith('<');
+    
+    res.json({
+      success: isWorking,
+      message: isWorking ? 'Google Trends API is working' : 'Google Trends API returned HTML (blocked)',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Google Trends API test failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Create a test log entry
+router.post('/test/log', async (req, res) => {
+  try {
+    const { level, message } = req.body;
+    
+    await systemLogModel.create({
+      level: level || 'info',
+      context: 'API-Test',
+      message: message || 'Test log entry from admin dashboard',
+      data: JSON.stringify({ source: 'admin_dashboard', timestamp: new Date().toISOString() })
+    });
+
+    res.json({
+      success: true,
+      message: 'Test log entry created successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create test log entry',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Manual topic addition for fallback
+router.post('/topics/manual', async (req, res) => {
+  try {
+    const { keyword, category } = req.body;
+    
+    if (!keyword) {
+      res.status(400).json({
+        success: false,
+        message: 'Keyword is required'
+      });
+      return;
+    }
+
+    // Import TrendsService to create manual topic
+    const { TrendsService } = await import('../../services/trendsService');
+    const trendsService = new TrendsService();
+    const topic = trendsService.addManualTopic(keyword, category);
+
+    // Create a trend run for this manual topic
+    const trendRunId = await trendRunModel.create({
+      status: 'completed',
+      total_keywords: 1,
+      topics_found: 1,
+      selected_topic: topic.keyword,
+      selected_topic_score: topic.predictedViews,
+      execution_time_ms: 50 // Instant for manual
+    });
+
+    // Store the manual topic
+    await trendingTopicModel.create({
+      trend_run_id: trendRunId,
+      keyword: topic.keyword,
+      score: topic.score,
+      region: topic.region,
+      category: topic.category,
+      predicted_views: topic.predictedViews,
+      volatility: topic.volatility,
+      competitiveness: topic.competitiveness,
+      related_queries: JSON.stringify(topic.relatedQueries),
+      rank_position: 1
+    });
+
+    // Log the manual addition
+    await systemLogModel.create({
+      level: 'info',
+      context: 'Manual-Topic',
+      message: `Manual topic added: ${keyword}`,
+      data: JSON.stringify({
+        keyword,
+        category,
+        predictedViews: topic.predictedViews,
+        addedBy: 'admin'
+      }),
+      trend_run_id: trendRunId
+    });
+
+    res.json({
+      success: true,
+      message: 'Manual topic added successfully',
+      topic,
+      trendRunId
+    });
+  } catch (error) {
+    logger.error('Manual topic addition error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add manual topic',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+export { router as apiRoutes };

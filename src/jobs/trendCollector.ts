@@ -1,5 +1,6 @@
 import * as cron from 'node-cron';
 import { TrendsService, TrendDiscoveryResult } from '../services/trendsService';
+import { TrendRunModel, TrendingTopicModel, SystemLogModel } from '../database/models';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('TrendCollector');
@@ -7,9 +8,15 @@ const logger = createLogger('TrendCollector');
 export class TrendCollector {
   private trendsService: TrendsService;
   private isRunning: boolean = false;
+  private trendRunModel: TrendRunModel;
+  private trendingTopicModel: TrendingTopicModel;
+  private systemLogModel: SystemLogModel;
 
   constructor() {
     this.trendsService = new TrendsService('KR', 'ko');
+    this.trendRunModel = new TrendRunModel();
+    this.trendingTopicModel = new TrendingTopicModel();
+    this.systemLogModel = new SystemLogModel();
   }
 
   start(): void {
@@ -38,13 +45,75 @@ export class TrendCollector {
     }
 
     this.isRunning = true;
+    const startTime = Date.now();
+    let trendRunId: number | null = null;
+
     logger.info('Starting trend collection...');
 
     try {
+      // Create trend run record
+      trendRunId = await this.trendRunModel.create({
+        status: 'running',
+        total_keywords: 0,
+        topics_found: 0
+      });
+
+      // Log start of trend collection
+      await this.systemLogModel.create({
+        level: 'info',
+        context: 'TrendCollector',
+        message: 'Started trend discovery process',
+        trend_run_id: trendRunId || undefined
+      });
+
       const result = await this.trendsService.discoverTrends();
+      const executionTime = Date.now() - startTime;
+      
+      // Update trend run with results
+      await this.trendRunModel.update(trendRunId, {
+        status: 'completed',
+        topics_found: result.topics.length,
+        selected_topic: result.selectedTopic?.keyword,
+        selected_topic_score: result.selectedTopic?.predictedViews,
+        execution_time_ms: executionTime
+      });
+
+      // Store all discovered topics
+      if (result.topics.length > 0) {
+        for (let i = 0; i < result.topics.length; i++) {
+          const topic = result.topics[i];
+          if (topic) {
+            await this.trendingTopicModel.create({
+              trend_run_id: trendRunId!,
+              keyword: topic.keyword,
+              score: topic.score,
+              region: topic.region,
+              category: topic.category,
+              predicted_views: topic.predictedViews,
+              volatility: topic.volatility,
+              competitiveness: topic.competitiveness,
+              related_queries: JSON.stringify(topic.relatedQueries),
+              rank_position: i + 1
+            });
+          }
+        }
+      }
       
       if (result.selectedTopic) {
         logger.info(`Selected topic: "${result.selectedTopic.keyword}" with score ${result.selectedTopic.predictedViews}`);
+        
+        // Log successful completion
+        await this.systemLogModel.create({
+          level: 'info',
+          context: 'TrendCollector',
+          message: `Trend discovery completed successfully. Selected: ${result.selectedTopic.keyword}`,
+          data: JSON.stringify({
+            topicsFound: result.topics.length,
+            executionTimeMs: executionTime,
+            selectedScore: result.selectedTopic.predictedViews
+          }),
+          trend_run_id: trendRunId || undefined
+        });
         
         // Store the result for the video generation pipeline
         await this.storeSelectedTopic(result);
@@ -53,11 +122,40 @@ export class TrendCollector {
         await this.triggerVideoGeneration(result.selectedTopic);
       } else {
         logger.warn('No topic selected from trend discovery');
+        
+        await this.systemLogModel.create({
+          level: 'warn',
+          context: 'TrendCollector',
+          message: 'No topic selected from trend discovery',
+          data: JSON.stringify({ topicsFound: result.topics.length }),
+          trend_run_id: trendRunId || undefined
+        });
       }
 
       return result;
     } catch (error) {
       logger.error('Error during trend collection:', error);
+      
+      // Update trend run as failed
+      if (trendRunId) {
+        await this.trendRunModel.update(trendRunId, {
+          status: 'failed',
+          execution_time_ms: Date.now() - startTime,
+          error_message: error instanceof Error ? error.message : String(error)
+        });
+      }
+
+      // Log the error
+      await this.systemLogModel.create({
+        level: 'error',
+        context: 'TrendCollector',
+        message: 'Trend collection failed',
+        data: JSON.stringify({
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        }),
+        trend_run_id: trendRunId || undefined
+      });
       
       // Send alert notification
       await this.sendErrorAlert(error);
