@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { TrendRunModel, TrendingTopicModel, VideoJobModel, SystemLogModel } from '../../database/models';
 import { TrendCollector } from '../../jobs/trendCollector';
+import { VideoJobOrchestrator } from '../../services/videoJobOrchestrator';
 import { createLogger } from '../../utils/logger';
 
 const router = Router();
@@ -12,8 +13,9 @@ const trendingTopicModel = new TrendingTopicModel();
 const videoJobModel = new VideoJobModel();
 const systemLogModel = new SystemLogModel();
 
-// Initialize trend collector
+// Initialize trend collector and video job orchestrator
 const trendCollector = new TrendCollector();
+const videoOrchestrator = new VideoJobOrchestrator();
 
 // Manual trigger for trend discovery
 router.post('/trigger/trends', async (req, res) => {
@@ -335,6 +337,189 @@ router.post('/topics/manual', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to add manual topic',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Video job management endpoints
+
+// Create a new video job
+router.post('/jobs/create', async (req, res) => {
+  try {
+    const { customTopic, customCategory, contentStyle, targetDuration, language } = req.body;
+    
+    logger.info('Manual video job creation triggered via API', req.body);
+    
+    const config = {
+      customTopic,
+      customCategory,
+      contentStyle: contentStyle || 'educational',
+      targetDuration: targetDuration || 58,
+      language: language || 'ko'
+    };
+    
+    const result = await videoOrchestrator.createVideoJob(config);
+    
+    res.json({
+      success: true,
+      message: 'Video job created successfully',
+      data: {
+        jobId: result.jobId,
+        topic: result.topic.keyword,
+        status: result.status,
+        processingTime: result.totalProcessingTime
+      }
+    });
+  } catch (error) {
+    logger.error('API video job creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create video job',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get job progress
+router.get('/jobs/:id/progress', async (req, res) => {
+  try {
+    const jobId = parseInt(req.params.id);
+    const progress = videoOrchestrator.getJobProgress(jobId);
+    
+    if (!progress) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job progress not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: progress
+    });
+  } catch (error) {
+    logger.error('API job progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get job progress',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get job details
+router.get('/jobs/:id', async (req, res) => {
+  try {
+    const jobId = parseInt(req.params.id);
+    const job = await videoOrchestrator.getJobDetails(jobId);
+    
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: job
+    });
+  } catch (error) {
+    logger.error('API job details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get job details',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get all active jobs
+router.get('/jobs/active', async (req, res) => {
+  try {
+    const activeJobs = videoOrchestrator.getAllActiveJobs();
+    
+    res.json({
+      success: true,
+      data: activeJobs
+    });
+  } catch (error) {
+    logger.error('API active jobs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get active jobs',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Retry a failed job
+router.post('/jobs/:id/retry', async (req, res) => {
+  try {
+    const jobId = parseInt(req.params.id);
+    
+    logger.info(`Retrying job ${jobId} via API`);
+    
+    const result = await videoOrchestrator.retryJob(jobId);
+    
+    res.json({
+      success: true,
+      message: 'Job retry initiated successfully',
+      data: {
+        newJobId: result.jobId,
+        topic: result.topic.keyword,
+        status: result.status
+      }
+    });
+  } catch (error) {
+    logger.error('API job retry error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retry job',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Test script generation
+router.post('/test/script', async (req, res) => {
+  try {
+    const { topic, category, style, duration } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
+      });
+    }
+    
+    const result = await videoOrchestrator.createJobWithManualTopic(
+      topic,
+      category || 'general',
+      {
+        contentStyle: style || 'educational',
+        targetDuration: duration || 58
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Script generation test completed',
+      data: {
+        jobId: result.jobId,
+        script: result.script,
+        audio: {
+          filePath: result.audio.audioFilePath,
+          duration: result.audio.duration
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('API script test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test script generation',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
