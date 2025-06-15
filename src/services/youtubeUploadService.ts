@@ -90,8 +90,8 @@ export class YouTubeUploadService {
 
     this.oauth2Client = new google.auth.OAuth2(
       clientId,
-      clientSecret,
-      'urn:ietf:wg:oauth:2.0:oob'
+      clientSecret
+      // No redirect URI needed for refresh token flow
     );
 
     this.oauth2Client.setCredentials({
