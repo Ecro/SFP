@@ -1,0 +1,63 @@
+app:
+  name: "Short-Form Auto Publisher"
+  version: "1.0.0"
+  port: 3000
+
+database:
+  sqlite:
+    path: "./data/sfp.db"
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+
+apis:
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 1000
+  
+  elevenlabs:
+    api_key: "${ELEVENLABS_API_KEY}"
+    voice_id: "21m00Tcm4TlvDq8ikWAM"
+  
+  luma:
+    api_key: "${LUMA_API_KEY}"
+  
+  youtube:
+    api_key: "${YOUTUBE_API_KEY}"
+    client_id: "${YOUTUBE_CLIENT_ID}"
+    client_secret: "${YOUTUBE_CLIENT_SECRET}"
+    redirect_uri: "http://localhost:3000/auth/callback"
+
+trends:
+  google:
+    region: "KR"
+    language: "ko"
+  
+  update_schedule: "0 6 * * *"  # Daily at 6 AM KST
+
+video:
+  format:
+    width: 1080
+    height: 1920
+    duration_min: 53
+    duration_max: 63
+    fps: 30
+  
+  script:
+    max_words: 200
+    hook_duration: 5
+
+alerts:
+  slack:
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+
+content:
+  sequel_threshold: 5
+  sequel_keywords:
+    - "next part"
+    - "part 2"
+    - "continue"
+    - "더 보여줘"
+    - "다음편"
