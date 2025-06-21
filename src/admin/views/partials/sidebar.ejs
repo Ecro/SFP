@@ -1,83 +1,156 @@
 <div class="container-fluid">
     <div class="row">
-        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-            <div class="position-sticky pt-3">
+        <!-- Enhanced Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse" id="sidebarNav">
+            <div class="position-sticky">
+                <!-- Brand Header -->
                 <div class="text-center mb-4">
-                    <h4 class="text-white">SFP Admin</h4>
+                    <div class="brand-container mb-3">
+                        <div class="brand-icon">
+                            🚀
+                        </div>
+                    </div>
+                    <h4 class="text-gradient">SFP Admin</h4>
                     <small class="text-muted">Short-Form Publisher</small>
-                </div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link <%= activeTab === 'overview' ? 'active' : '' %>" href="/admin">
-                            <i class="bi bi-speedometer2"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= activeTab === 'trends' ? 'active' : '' %>" href="/admin/trends">
-                            <i class="bi bi-graph-up"></i> Trend Analysis
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= activeTab === 'storyline-test' ? 'active' : '' %>" href="/admin/storyline-test">
-                            <i class="bi bi-lightbulb"></i> Storyline Test
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= activeTab === 'pipeline' ? 'active' : '' %>" href="/admin/pipeline">
-                            <i class="bi bi-diagram-3"></i> Video Pipeline
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= activeTab === 'analytics' ? 'active' : '' %>" href="/admin/analytics">
-                            <i class="bi bi-bar-chart"></i> Analytics
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= activeTab === 'logs' ? 'active' : '' %>" href="/admin/logs">
-                            <i class="bi bi-file-text"></i> System Logs
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <%= activeTab === 'settings' ? 'active' : '' %>" href="/admin/settings">
-                            <i class="bi bi-gear"></i> Settings
-                        </a>
-                    </li>
-                </ul>
-
-                <hr class="my-3">
-
-                <div class="px-3">
-                    <h6 class="text-white-50 mb-2">Quick Actions</h6>
-                    <button class="btn btn-sm btn-outline-light mb-2 w-100" onclick="triggerTrendDiscovery()">
-                        <i class="bi bi-play-circle"></i> Run Trends
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning mb-2 w-100" onclick="window.location.href='/admin/storyline-test'">
-                        <i class="bi bi-lightbulb"></i> Test Ideas
-                    </button>
-                    <button class="btn btn-sm btn-outline-light mb-2 w-100" onclick="refreshData()">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh
-                    </button>
+                    <div class="brand-divider mt-3"></div>
                 </div>
 
-                <div class="px-3 mt-4">
-                    <div class="d-flex align-items-center">
-                        <span class="status-indicator" id="connectionStatus"></span>
-                        <small class="text-white-50">Connection</small>
+                <!-- Main Navigation -->
+                <div class="nav-section">
+                    <div class="nav-header">
+                        <span class="nav-header-text">MAIN MENU</span>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link <%= activeTab === 'overview' ? 'active' : '' %>" href="/admin">
+                                <i class="bi bi-speedometer2"></i>
+                                <span>Dashboard</span>
+                                <% if (activeTab === 'overview') { %>
+                                    <div class="nav-indicator"></div>
+                                <% } %>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= activeTab === 'trends' ? 'active' : '' %>" href="/admin/trends">
+                                <i class="bi bi-graph-up"></i>
+                                <span>Trend Analysis</span>
+                                <% if (activeTab === 'trends') { %>
+                                    <div class="nav-indicator"></div>
+                                <% } %>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= activeTab === 'storyline-test' ? 'active' : '' %>" href="/admin/storyline-test">
+                                <i class="bi bi-lightbulb"></i>
+                                <span>Storyline Test</span>
+                                <% if (activeTab === 'storyline-test') { %>
+                                    <div class="nav-indicator"></div>
+                                <% } %>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= activeTab === 'pipeline' ? 'active' : '' %>" href="/admin/pipeline">
+                                <i class="bi bi-diagram-3"></i>
+                                <span>Video Pipeline</span>
+                                <% if (activeTab === 'pipeline') { %>
+                                    <div class="nav-indicator"></div>
+                                <% } %>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= activeTab === 'analytics' ? 'active' : '' %>" href="/admin/analytics">
+                                <i class="bi bi-bar-chart"></i>
+                                <span>Analytics</span>
+                                <% if (activeTab === 'analytics') { %>
+                                    <div class="nav-indicator"></div>
+                                <% } %>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= activeTab === 'logs' ? 'active' : '' %>" href="/admin/logs">
+                                <i class="bi bi-file-text"></i>
+                                <span>System Logs</span>
+                                <% if (activeTab === 'logs') { %>
+                                    <div class="nav-indicator"></div>
+                                <% } %>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <%= activeTab === 'settings' ? 'active' : '' %>" href="/admin/settings">
+                                <i class="bi bi-gear"></i>
+                                <span>Settings</span>
+                                <% if (activeTab === 'settings') { %>
+                                    <div class="nav-indicator"></div>
+                                <% } %>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Quick Actions Section -->
+                <div class="nav-section">
+                    <div class="nav-header">
+                        <span class="nav-header-text">QUICK ACTIONS</span>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn primary" onclick="triggerTrendDiscovery()" title="Run Trend Discovery">
+                            <i class="bi bi-play-circle"></i>
+                            <span>Run Trends</span>
+                        </button>
+                        <button class="quick-action-btn warning" onclick="window.location.href='/admin/storyline-test'" title="Test Storylines">
+                            <i class="bi bi-lightbulb"></i>
+                            <span>Test Ideas</span>
+                        </button>
+                        <button class="quick-action-btn secondary" onclick="refreshData()" title="Refresh Dashboard">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Connection Status -->
+                <div class="nav-section">
+                    <div class="connection-status">
+                        <div class="status-container">
+                            <span class="status-indicator live-update" id="connectionStatus"></span>
+                            <div class="status-info">
+                                <span class="status-label">System Status</span>
+                                <span class="status-text" id="connectionText">Connected</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </nav>
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1 class="h2"><%= title %></h1>
-                <div class="btn-toolbar mb-2 mb-md-0">
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
-                            <i class="bi bi-arrow-clockwise"></i> Refresh
+
+        <!-- Main Content Area -->
+        <main class="col-md-9 ms-sm-auto col-lg-10">
+            <!-- Top Header Bar -->
+            <div class="main-header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <button class="mobile-menu-btn d-md-none" onclick="toggleSidebar()">
+                            <i class="bi bi-list"></i>
                         </button>
+                        <h1 class="page-title"><%= title %></h1>
                     </div>
-                    <div class="text-muted small">
-                        Last updated: <span id="lastUpdated"><%= new Date().toLocaleString() %></span>
+                    <div class="header-right">
+                        <div class="header-actions">
+                            <button type="button" class="action-btn" onclick="window.location.reload()" title="Refresh Page">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <button type="button" class="action-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+                                <i class="bi bi-fullscreen"></i>
+                            </button>
+                        </div>
+                        <div class="header-meta">
+                            <span class="last-updated">
+                                Last updated: <span id="lastUpdated"><%= new Date().toLocaleString() %></span>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Page Content -->
+            <div class="page-content">

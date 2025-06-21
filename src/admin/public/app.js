@@ -250,28 +250,243 @@ function showNotification(message, type, duration = 5000) {
     }, autoDismissTime);
 }
 
+// Mobile sidebar toggle
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarNav');
+    if (sidebar) {
+        sidebar.classList.toggle('show');
+    }
+}
+
+// Fullscreen toggle
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log('Error attempting to enable fullscreen:', err);
+            showNotification('Fullscreen not supported', 'warning');
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+// Enhanced connection status updates
+function updateConnectionStatus(status = 'connected') {
+    const statusIndicator = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('connectionText');
+    
+    if (statusIndicator) {
+        statusIndicator.className = 'status-indicator live-update';
+        
+        switch (status) {
+            case 'connected':
+                statusIndicator.classList.add('status-success');
+                if (statusText) statusText.textContent = 'Connected';
+                break;
+            case 'disconnected':
+                statusIndicator.classList.add('status-danger');
+                if (statusText) statusText.textContent = 'Disconnected';
+                break;
+            case 'connecting':
+                statusIndicator.classList.add('status-warning');
+                if (statusText) statusText.textContent = 'Connecting...';
+                break;
+            default:
+                statusIndicator.classList.add('status-info');
+                if (statusText) statusText.textContent = 'Unknown';
+        }
+    }
+}
+
+// Animation helpers
+function animateNumber(element, endValue, duration = 1000) {
+    if (!element) return;
+    
+    const startValue = parseInt(element.textContent) || 0;
+    const startTime = performance.now();
+    
+    function updateValue(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const currentValue = Math.floor(startValue + (endValue - startValue) * easeOut);
+        
+        element.textContent = currentValue;
+        
+        if (progress < 1) {
+            requestAnimationFrame(updateValue);
+        }
+    }
+    
+    requestAnimationFrame(updateValue);
+}
+
+// Enhanced loading states
+function showLoadingState(container, message = 'Loading...') {
+    if (!container) return;
+    
+    const loadingHTML = `
+        <div class="loading-state">
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <div class="loading-message">${message}</div>
+        </div>
+    `;
+    
+    container.innerHTML = loadingHTML;
+    container.classList.add('loading');
+}
+
+function hideLoadingState(container, content = '') {
+    if (!container) return;
+    
+    container.classList.remove('loading');
+    if (content) {
+        container.innerHTML = content;
+    }
+}
+
+// Theme toggle (future enhancement)
+function toggleTheme() {
+    // Placeholder for theme switching functionality
+    showNotification('Theme switching coming soon!', 'info');
+}
+
+// Enhanced page transitions
+function navigateWithTransition(url) {
+    document.body.style.opacity = '0.7';
+    document.body.style.transform = 'scale(0.98)';
+    
+    setTimeout(() => {
+        window.location.href = url;
+    }, 150);
+}
+
+// Update existing functions to use new connection status
+function connectWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+    ws.onopen = function() {
+        console.log('WebSocket connected');
+        updateConnectionStatus('connected');
+    };
+
+    ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+    };
+
+    ws.onclose = function() {
+        console.log('WebSocket disconnected');
+        updateConnectionStatus('disconnected');
+        setTimeout(() => {
+            updateConnectionStatus('connecting');
+            connectWebSocket();
+        }, 5000);
+    };
+
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+        updateConnectionStatus('disconnected');
+    };
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     connectionStatus = document.getElementById('connectionStatus');
     connectWebSocket();
     
-    // Add keyboard shortcuts
+    // Initialize animations for metric cards
+    const metricCards = document.querySelectorAll('.metric-card');
+    metricCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+    });
+    
+    // Animate metric values on page load
+    setTimeout(() => {
+        const metricValues = document.querySelectorAll('.metric-value');
+        metricValues.forEach(value => {
+            const endValue = parseInt(value.textContent);
+            if (!isNaN(endValue)) {
+                value.textContent = '0';
+                animateNumber(value, endValue, 1500);
+            }
+        });
+    }, 500);
+    
+    // Add smooth scrolling
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+    
+    // Enhanced keyboard shortcuts
     document.addEventListener('keydown', function(e) {
         // Ctrl+Shift+T to go to storyline test
         if (e.ctrlKey && e.shiftKey && e.key === 'T') {
             e.preventDefault();
-            window.location.href = '/admin/storyline-test';
+            navigateWithTransition('/admin/storyline-test');
         }
         
         // Ctrl+Shift+D to go to dashboard
         if (e.ctrlKey && e.shiftKey && e.key === 'D') {
             e.preventDefault();
-            window.location.href = '/admin';
+            navigateWithTransition('/admin');
         }
         
         // Ctrl+Shift+P to go to pipeline
         if (e.ctrlKey && e.shiftKey && e.key === 'P') {
             e.preventDefault();
-            window.location.href = '/admin/pipeline';
+            navigateWithTransition('/admin/pipeline');
+        }
+        
+        // F11 for fullscreen (alternative to button)
+        if (e.key === 'F11') {
+            e.preventDefault();
+            toggleFullscreen();
+        }
+        
+        // Escape to close mobile sidebar
+        if (e.key === 'Escape') {
+            const sidebar = document.getElementById('sidebarNav');
+            if (sidebar && sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
         }
     });
+    
+    // Close mobile sidebar when clicking outside
+    document.addEventListener('click', function(e) {
+        const sidebar = document.getElementById('sidebarNav');
+        const menuButton = document.querySelector('.mobile-menu-btn');
+        
+        if (sidebar && sidebar.classList.contains('show') && 
+            !sidebar.contains(e.target) && 
+            !menuButton?.contains(e.target)) {
+            sidebar.classList.remove('show');
+        }
+    });
+    
+    // Auto-hide notifications after longer time for mobile
+    if (window.innerWidth <= 768) {
+        const originalShowNotification = showNotification;
+        showNotification = function(message, type, duration = 7000) {
+            originalShowNotification(message, type, duration);
+        };
+    }
 });

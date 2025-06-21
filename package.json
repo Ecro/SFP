@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && npm run copy-assets",
-    "copy-assets": "cp -r src/database/schema.sql dist/database/ && cp -r src/admin/views dist/admin/",
+    "copy-assets": "cp -r src/database/schema.sql dist/database/ && cp -r src/admin/views dist/admin/ && cp -r src/admin/public dist/admin/",
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
     "test": "jest",

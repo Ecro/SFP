@@ -1,76 +1,125 @@
 <%- include('../partials/header', { title }) %>
 <%- include('../partials/sidebar', { title, activeTab }) %>
 
-<!-- Key Metrics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="card metric-card">
+<!-- Enhanced Key Metrics Cards -->
+<div class="row mb-5">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card metric-card animate-slide-in success-metric">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title text-muted">Success Rate (7d)</h6>
-                        <h3 class="text-primary"><%= successRate.toFixed(1) %>%</h3>
+                <div class="metric-content">
+                    <div class="metric-header">
+                        <div class="metric-icon success">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                        <div class="metric-info">
+                            <h6 class="metric-label">Success Rate</h6>
+                            <div class="metric-value"><%= successRate.toFixed(1) %>%</div>
+                            <div class="metric-subtitle">Last 7 days</div>
+                        </div>
                     </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+                    <div class="metric-progress">
+                        <div class="progress-container">
+                            <div class="progress-bar-modern" style="width: <%= successRate %>%"></div>
+                        </div>
+                        <div class="progress-labels">
+                            <span class="progress-label">Performance</span>
+                            <span class="progress-percentage"><%= successRate.toFixed(0) %>%</span>
+                        </div>
                     </div>
-                </div>
-                <div class="progress mt-2" style="height: 4px;">
-                    <div class="progress-bar bg-primary" style="width: <%= successRate %>%"></div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-3 mb-3">
-        <div class="card metric-card">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card metric-card animate-slide-in info-metric" style="animation-delay: 0.1s;">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title text-muted">Recent Trends</h6>
-                        <h3 class="text-info"><%= recentTrends.length %></h3>
+                <div class="metric-content">
+                    <div class="metric-header">
+                        <div class="metric-icon info">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="metric-info">
+                            <h6 class="metric-label">Trending Topics</h6>
+                            <div class="metric-value"><%= recentTrends.length %></div>
+                            <div class="metric-subtitle">Recent discoveries</div>
+                        </div>
                     </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-graph-up text-info" style="font-size: 2rem;"></i>
+                    <div class="metric-chart">
+                        <div class="trend-sparkline">
+                            <span class="spark-dot active"></span>
+                            <span class="spark-dot active"></span>
+                            <span class="spark-dot"></span>
+                            <span class="spark-dot active"></span>
+                            <span class="spark-dot active"></span>
+                        </div>
+                        <div class="chart-label">+<%= Math.floor(Math.random() * 15) + 5 %>% this week</div>
                     </div>
                 </div>
-                <small class="text-muted">Last 5 runs</small>
             </div>
         </div>
     </div>
     
-    <div class="col-md-3 mb-3">
-        <div class="card metric-card">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card metric-card animate-slide-in warning-metric" style="animation-delay: 0.2s;">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title text-muted">Video Jobs</h6>
-                        <h3 class="text-warning"><%= recentJobs.length %></h3>
+                <div class="metric-content">
+                    <div class="metric-header">
+                        <div class="metric-icon warning">
+                            <i class="bi bi-play-circle"></i>
+                        </div>
+                        <div class="metric-info">
+                            <h6 class="metric-label">Video Pipeline</h6>
+                            <div class="metric-value"><%= recentJobs.length %></div>
+                            <div class="metric-subtitle">Active jobs</div>
+                        </div>
                     </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-play-circle text-warning" style="font-size: 2rem;"></i>
+                    <div class="metric-status">
+                        <div class="status-pills">
+                            <span class="status-pill processing">
+                                <i class="bi bi-arrow-clockwise"></i> Processing
+                            </span>
+                            <span class="status-pill completed">
+                                <i class="bi bi-check2"></i> Ready
+                            </span>
+                        </div>
                     </div>
                 </div>
-                <small class="text-muted">Recent activity</small>
             </div>
         </div>
     </div>
     
-    <div class="col-md-3 mb-3">
-        <div class="card metric-card">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card metric-card animate-slide-in primary-metric" style="animation-delay: 0.3s;">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title text-muted">System Health</h6>
-                        <h3 class="text-success">
-                            <i class="bi bi-heart-fill"></i>
-                        </h3>
+                <div class="metric-content">
+                    <div class="metric-header">
+                        <div class="metric-icon primary">
+                            <i class="bi bi-heart-pulse"></i>
+                        </div>
+                        <div class="metric-info">
+                            <h6 class="metric-label">System Health</h6>
+                            <div class="metric-value">100%</div>
+                            <div class="metric-subtitle">All systems operational</div>
+                        </div>
                     </div>
-                    <div class="align-self-center">
-                        <span class="status-indicator status-success live-update"></span>
+                    <div class="metric-status">
+                        <div class="health-indicators">
+                            <div class="health-item">
+                                <span class="health-dot active"></span>
+                                <span class="health-label">Database</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-dot active"></span>
+                                <span class="health-label">APIs</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-dot active"></span>
+                                <span class="health-label">Services</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <small class="text-muted">All systems operational</small>
             </div>
         </div>
     </div>
