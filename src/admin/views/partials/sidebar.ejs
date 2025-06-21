@@ -18,6 +18,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link <%= activeTab === 'storyline-test' ? 'active' : '' %>" href="/admin/storyline-test">
+                            <i class="bi bi-lightbulb"></i> Storyline Test
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link <%= activeTab === 'pipeline' ? 'active' : '' %>" href="/admin/pipeline">
                             <i class="bi bi-diagram-3"></i> Video Pipeline
                         </a>
@@ -45,6 +50,9 @@
                     <h6 class="text-white-50 mb-2">Quick Actions</h6>
                     <button class="btn btn-sm btn-outline-light mb-2 w-100" onclick="triggerTrendDiscovery()">
                         <i class="bi bi-play-circle"></i> Run Trends
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning mb-2 w-100" onclick="window.location.href='/admin/storyline-test'">
+                        <i class="bi bi-lightbulb"></i> Test Ideas
                     </button>
                     <button class="btn btn-sm btn-outline-light mb-2 w-100" onclick="refreshData()">
                         <i class="bi bi-arrow-clockwise"></i> Refresh

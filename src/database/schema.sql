@@ -196,3 +196,58 @@ CREATE INDEX IF NOT EXISTS idx_youtube_uploads_video_job_id ON youtube_uploads(v
 CREATE INDEX IF NOT EXISTS idx_system_logs_timestamp ON system_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
 CREATE INDEX IF NOT EXISTS idx_daily_metrics_date ON daily_metrics(date);
+
+-- Storyline test results for trend testing feature
+CREATE TABLE IF NOT EXISTS storyline_tests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    test_id TEXT NOT NULL UNIQUE,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    category TEXT, -- optional category filter used
+    total_topics_analyzed INTEGER DEFAULT 0,
+    storylines_generated INTEGER DEFAULT 0,
+    execution_time_ms INTEGER DEFAULT 0,
+    trends_source_google INTEGER DEFAULT 0,
+    trends_source_naver INTEGER DEFAULT 0,
+    trends_source_youtube INTEGER DEFAULT 0,
+    selected_storyline_id TEXT, -- which storyline was selected for production
+    user_action TEXT DEFAULT 'none', -- 'none', 'selected', 'generated_video'
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Individual storyline suggestions from tests
+CREATE TABLE IF NOT EXISTS storyline_suggestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    storyline_test_id INTEGER NOT NULL,
+    storyline_id TEXT NOT NULL,
+    topic_keyword TEXT NOT NULL,
+    topic_category TEXT NOT NULL,
+    topic_score INTEGER NOT NULL,
+    script_title TEXT NOT NULL,
+    script_hook TEXT NOT NULL,
+    script_main_content TEXT NOT NULL,
+    script_call_to_action TEXT NOT NULL,
+    script_full_text TEXT NOT NULL,
+    script_tone TEXT NOT NULL,
+    script_keywords TEXT, -- JSON array
+    summary TEXT NOT NULL,
+    engagement_score INTEGER DEFAULT 0,
+    engagement_factors TEXT, -- JSON array
+    audience_appeal TEXT DEFAULT 'Medium',
+    estimated_views INTEGER DEFAULT 0,
+    difficulty TEXT DEFAULT 'medium', -- 'easy', 'medium', 'hard'
+    tags TEXT, -- JSON array
+    final_score REAL DEFAULT 0.0,
+    was_selected BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (storyline_test_id) REFERENCES storyline_tests(id)
+);
+
+-- Create indexes for storyline tables
+CREATE INDEX IF NOT EXISTS idx_storyline_tests_test_id ON storyline_tests(test_id);
+CREATE INDEX IF NOT EXISTS idx_storyline_tests_timestamp ON storyline_tests(timestamp);
+CREATE INDEX IF NOT EXISTS idx_storyline_tests_category ON storyline_tests(category);
+CREATE INDEX IF NOT EXISTS idx_storyline_suggestions_test_id ON storyline_suggestions(storyline_test_id);
+CREATE INDEX IF NOT EXISTS idx_storyline_suggestions_storyline_id ON storyline_suggestions(storyline_id);
+CREATE INDEX IF NOT EXISTS idx_storyline_suggestions_topic_keyword ON storyline_suggestions(topic_keyword);
+CREATE INDEX IF NOT EXISTS idx_storyline_suggestions_engagement_score ON storyline_suggestions(engagement_score);
+CREATE INDEX IF NOT EXISTS idx_storyline_suggestions_final_score ON storyline_suggestions(final_score);

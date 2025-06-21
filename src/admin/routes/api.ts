@@ -1130,6 +1130,285 @@ router.get('/trends/cross-validated', async (req, res) => {
   }
 });
 
+// Storyline Testing Endpoints
+
+// Generate storyline suggestions for testing
+router.post('/test/storylines', async (req, res) => {
+  try {
+    const { category, limit, contentStyle, language } = req.body;
+    
+    logger.info('Storyline test generation requested', { category, limit, contentStyle });
+    
+    const { StorylineTestService } = await import('../../services/storylineTestService');
+    const storylineService = new StorylineTestService();
+    
+    const result = await storylineService.generateStorylineSuggestions({
+      category,
+      limit: limit || 10,
+      contentStyle: contentStyle || 'educational',
+      language: language || 'ko'
+    });
+    
+    // Store test results in database
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    
+    const testDbId = await db.run(`
+      INSERT INTO storyline_tests (
+        test_id, category, total_topics_analyzed, storylines_generated,
+        execution_time_ms, trends_source_google, trends_source_naver, trends_source_youtube
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      result.testId,
+      result.category || null,
+      result.totalTopicsAnalyzed,
+      result.storylines.length,
+      result.executionTime,
+      result.trendsSource.google,
+      result.trendsSource.naver,
+      result.trendsSource.youtube
+    ]);
+    
+    // Store individual storyline suggestions
+    for (const storyline of result.storylines) {
+      await db.run(`
+        INSERT INTO storyline_suggestions (
+          storyline_test_id, storyline_id, topic_keyword, topic_category, topic_score,
+          script_title, script_hook, script_main_content, script_call_to_action,
+          script_full_text, script_tone, script_keywords, summary,
+          engagement_score, engagement_factors, audience_appeal, estimated_views,
+          difficulty, tags, final_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        testDbId,
+        storyline.id,
+        storyline.topic.keyword,
+        storyline.topic.category,
+        storyline.topic.score,
+        storyline.script.title,
+        storyline.script.hook,
+        storyline.script.mainContent,
+        storyline.script.callToAction,
+        storyline.script.fullScript,
+        storyline.script.tone,
+        JSON.stringify(storyline.script.keywords),
+        storyline.summary,
+        storyline.engagementPrediction.score,
+        JSON.stringify(storyline.engagementPrediction.factors),
+        storyline.engagementPrediction.audienceAppeal,
+        storyline.estimatedViews,
+        storyline.difficulty,
+        JSON.stringify(storyline.tags),
+        storyline.finalScore || 0
+      ]);
+    }
+    
+    res.json({
+      success: true,
+      message: `Generated ${result.storylines.length} storyline suggestions`,
+      data: result
+    });
+  } catch (error) {
+    logger.error('Storyline test generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate storyline suggestions',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get storyline test history
+router.get('/test/storylines/history', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    
+    const tests = await db.all(`
+      SELECT 
+        st.*,
+        COUNT(ss.id) as storylines_count,
+        ss.storyline_id as selected_storyline_id
+      FROM storyline_tests st
+      LEFT JOIN storyline_suggestions ss ON st.id = ss.storyline_test_id AND ss.was_selected = 1
+      GROUP BY st.id
+      ORDER BY st.timestamp DESC
+      LIMIT ?
+    `, [limit]);
+    
+    res.json({
+      success: true,
+      message: 'Storyline test history retrieved',
+      data: {
+        tests,
+        count: tests.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Storyline test history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get storyline test history',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get detailed results for a specific storyline test
+router.get('/test/storylines/:testId', async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    
+    // Get test info
+    const test = await db.get(`
+      SELECT * FROM storyline_tests WHERE test_id = ?
+    `, [testId]);
+    
+    if (!test) {
+      return res.status(404).json({
+        success: false,
+        message: 'Storyline test not found'
+      });
+    }
+    
+    // Get all storylines for this test
+    const storylines = await db.all(`
+      SELECT * FROM storyline_suggestions 
+      WHERE storyline_test_id = ? 
+      ORDER BY final_score DESC
+    `, [test.id]);
+    
+    // Parse JSON fields
+    const parsedStorylines = storylines.map(s => ({
+      ...s,
+      script_keywords: JSON.parse(s.script_keywords || '[]'),
+      engagement_factors: JSON.parse(s.engagement_factors || '[]'),
+      tags: JSON.parse(s.tags || '[]')
+    }));
+    
+    res.json({
+      success: true,
+      message: 'Storyline test details retrieved',
+      data: {
+        test,
+        storylines: parsedStorylines,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Storyline test details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get storyline test details',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Select a storyline for video production (the "Go" action)
+router.post('/test/storylines/:testId/select/:storylineId', async (req, res) => {
+  try {
+    const { testId, storylineId } = req.params;
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    
+    // Get the storyline details
+    const storyline = await db.get(`
+      SELECT ss.*, st.test_id
+      FROM storyline_suggestions ss
+      JOIN storyline_tests st ON ss.storyline_test_id = st.id
+      WHERE st.test_id = ? AND ss.storyline_id = ?
+    `, [testId, storylineId]);
+    
+    if (!storyline) {
+      return res.status(404).json({
+        success: false,
+        message: 'Storyline not found'
+      });
+    }
+    
+    // Mark this storyline as selected
+    await db.run(`
+      UPDATE storyline_suggestions 
+      SET was_selected = 1 
+      WHERE storyline_id = ?
+    `, [storylineId]);
+    
+    // Update the test record
+    await db.run(`
+      UPDATE storyline_tests 
+      SET selected_storyline_id = ?, user_action = 'selected'
+      WHERE test_id = ?
+    `, [storylineId, testId]);
+    
+    // Create a video job using the selected storyline
+    const topic = {
+      keyword: storyline.topic_keyword,
+      category: storyline.topic_category,
+      score: storyline.topic_score,
+      predictedViews: storyline.estimated_views,
+      relatedQueries: JSON.parse(storyline.script_keywords || '[]'),
+      volatility: 50, // Default value
+      competitiveness: 50, // Default value
+      region: 'KR'
+    };
+    
+    logger.info(`Creating video job for selected storyline: ${storylineId}`);
+    
+    const result = await videoOrchestrator.createJobWithManualTopic(
+      storyline.topic_keyword,
+      storyline.topic_category,
+      {
+        contentStyle: 'educational', // Could be derived from storyline
+        targetDuration: 58,
+        videoStyle: 'cinematic',
+        language: 'ko',
+        predefinedScript: {
+          title: storyline.script_title,
+          hook: storyline.script_hook,
+          mainContent: storyline.script_main_content,
+          callToAction: storyline.script_call_to_action,
+          fullScript: storyline.script_full_text,
+          tone: storyline.script_tone,
+          keywords: JSON.parse(storyline.script_keywords || '[]'),
+          estimatedDuration: 58,
+          generationTime: 0
+        }
+      }
+    );
+    
+    // Update test record with video job info
+    await db.run(`
+      UPDATE storyline_tests 
+      SET user_action = 'generated_video'
+      WHERE test_id = ?
+    `, [testId]);
+    
+    res.json({
+      success: true,
+      message: 'Storyline selected and video production started',
+      data: {
+        storylineId,
+        videoJobId: result.jobId,
+        topic: result.topic.keyword,
+        status: result.status,
+        processingTime: result.totalProcessingTime
+      }
+    });
+  } catch (error) {
+    logger.error('Storyline selection error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to select storyline and start video production',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Search trends by keyword or category
 router.get('/trends/search', async (req, res) => {
   try {

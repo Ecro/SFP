@@ -254,4 +254,118 @@ Return the optimized script in the same JSON format as before.
       generationTime: script.generationTime
     };
   }
+
+  // Method to generate multiple storyline variations from topics
+  async generateMultipleStorylines(
+    topics: any[], 
+    options: {
+      count?: number;
+      style?: 'educational' | 'entertainment' | 'news' | 'lifestyle';
+      targetDuration?: number;
+      language?: 'ko' | 'en';
+    } = {}
+  ): Promise<GeneratedScript[]> {
+    const {
+      count = 10,
+      style = 'educational',
+      targetDuration = 58,
+      language = 'ko'
+    } = options;
+
+    logger.info(`Generating ${count} storyline variations from ${topics.length} topics`);
+
+    const styles = ['educational', 'entertainment', 'news', 'lifestyle'] as const;
+    const scripts: GeneratedScript[] = [];
+
+    // Generate scripts in batches to avoid overwhelming the API
+    const batchSize = 3;
+    for (let i = 0; i < Math.min(topics.length, count); i += batchSize) {
+      const batch = topics.slice(i, i + batchSize);
+      
+      const batchPromises = batch.map(async (topic, index) => {
+        const scriptStyle = style || styles[(i + index) % styles.length];
+        
+        try {
+          return await this.generateScript({
+            topic,
+            style: scriptStyle,
+            targetDuration,
+            includeHook: true,
+            language
+          });
+        } catch (error) {
+          logger.warn(`Failed to generate script for topic: ${topic.keyword}`, error);
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      batchResults.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+          scripts.push(result.value);
+        }
+      });
+
+      // Add small delay between batches to be respectful to the API
+      if (i + batchSize < Math.min(topics.length, count)) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    logger.info(`Successfully generated ${scripts.length} storyline scripts`);
+    return scripts.slice(0, count);
+  }
+
+  // Method to generate a creative variation of an existing script
+  async generateScriptVariation(
+    originalScript: GeneratedScript,
+    variationType: 'hook' | 'tone' | 'style' | 'angle'
+  ): Promise<GeneratedScript> {
+    logger.info(`Generating ${variationType} variation for script: ${originalScript.title}`);
+
+    const variationPrompts = {
+      hook: 'Create a completely different hook that grabs attention in a new way',
+      tone: 'Change the tone while keeping the same core message',
+      style: 'Rewrite in a different content style while maintaining the key points',
+      angle: 'Approach the same topic from a completely different angle or perspective'
+    };
+
+    const prompt = `
+Based on this existing script, ${variationPrompts[variationType]}:
+
+ORIGINAL SCRIPT:
+Title: ${originalScript.title}
+Hook: ${originalScript.hook}
+Main Content: ${originalScript.mainContent}
+Call to Action: ${originalScript.callToAction}
+
+REQUIREMENTS:
+1. Keep the same target duration (~${originalScript.estimatedDuration} seconds)
+2. ${variationPrompts[variationType]}
+3. Maintain the same language and format
+4. Ensure the new version is distinctly different but equally engaging
+
+Return the variation in the same JSON format as the original.
+`;
+
+    const response = await this.callAnthropicAPI(prompt);
+    const variation = this.parseScriptResponse(response);
+    
+    return {
+      ...variation,
+      generationTime: Date.now() - Date.now() // Will be set by calling function
+    };
+  }
+
+  // Method to create storyline summaries for testing interface
+  generateStorylineSummary(script: GeneratedScript, topic: any): string {
+    const hookPreview = script.hook.length > 40 ? 
+      script.hook.substring(0, 37) + '...' : script.hook;
+    
+    const topicInfo = topic ? ` about ${topic.keyword}` : '';
+    const toneInfo = script.tone ? ` in a ${script.tone} tone` : '';
+    
+    return `${hookPreview} A ${script.estimatedDuration}-second video${topicInfo}${toneInfo} targeting ${script.keywords.slice(0, 3).join(', ')} keywords.`;
+  }
 }
