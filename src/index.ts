@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { TrendCollector } from './jobs/trendCollector';
 import { AdminServer } from './admin/server';
 import { Database } from './database/connection';

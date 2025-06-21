@@ -1,4 +1,4 @@
-const { ElevenLabs } = require('elevenlabs');
+import { ElevenLabsClient } from 'elevenlabs';
 import { createLogger } from '../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -26,7 +26,7 @@ export interface TTSResult {
 }
 
 export class TextToSpeechService {
-  private client: any;
+  private client: ElevenLabsClient;
   private readonly outputDir: string;
   private readonly maxRetries: number = 3;
 
@@ -66,7 +66,7 @@ export class TextToSpeechService {
       throw new Error('ELEVENLABS_API_KEY environment variable is required');
     }
 
-    this.client = new ElevenLabs({
+    this.client = new ElevenLabsClient({
       apiKey: apiKey
     });
     this.outputDir = process.env.TTS_OUTPUT_DIR || './data/audio';
@@ -137,10 +137,9 @@ export class TextToSpeechService {
       try {
         logger.debug(`Attempt ${attempt}/${this.maxRetries} - Calling ElevenLabs API`);
         
-        const response = await this.client.generate({
-          voice: config.voiceId,
-          model_id: config.modelId,
+        const response = await this.client.textToSpeech.convert(config.voiceId, {
           text: text,
+          model_id: config.modelId,
           voice_settings: {
             stability: config.stability,
             similarity_boost: config.similarityBoost,

@@ -8,7 +8,13 @@ CREATE TABLE IF NOT EXISTS trend_runs (
     selected_topic TEXT,
     selected_topic_score INTEGER,
     execution_time_ms INTEGER,
-    error_message TEXT
+    error_message TEXT,
+    sources_used TEXT, -- JSON array of sources used in this run
+    total_topics_discovered INTEGER DEFAULT 0,
+    naver_topics_count INTEGER DEFAULT 0,
+    youtube_topics_count INTEGER DEFAULT 0,
+    google_topics_count INTEGER DEFAULT 0,
+    cross_validated_topics INTEGER DEFAULT 0
 );
 
 -- Individual trending topics discovered
@@ -24,7 +30,50 @@ CREATE TABLE IF NOT EXISTS trending_topics (
     competitiveness REAL NOT NULL,
     related_queries TEXT, -- JSON array
     rank_position INTEGER,
+    source TEXT DEFAULT 'google', -- 'google', 'naver', 'youtube'
+    search_volume INTEGER,
+    growth_rate REAL,
+    trend_score INTEGER,
+    confidence REAL DEFAULT 0.5,
+    cross_platform_validated BOOLEAN DEFAULT FALSE,
+    trend_velocity REAL DEFAULT 0.0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (trend_run_id) REFERENCES trend_runs(id)
+);
+
+-- Multi-source trend aggregations
+CREATE TABLE IF NOT EXISTS aggregated_trends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    keyword TEXT NOT NULL,
+    normalized_keyword TEXT NOT NULL,
+    aggregated_score REAL NOT NULL,
+    sources TEXT NOT NULL, -- JSON array of sources
+    category TEXT NOT NULL,
+    predicted_views INTEGER NOT NULL,
+    confidence REAL NOT NULL,
+    cross_platform_validation BOOLEAN NOT NULL,
+    trend_velocity REAL NOT NULL,
+    google_topic_id INTEGER,
+    naver_data TEXT, -- JSON data from Naver
+    youtube_data TEXT, -- JSON data from YouTube
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (google_topic_id) REFERENCES trending_topics(id)
+);
+
+-- Trend source performance tracking
+CREATE TABLE IF NOT EXISTS trend_source_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL, -- 'google', 'naver', 'youtube'
+    date DATE NOT NULL,
+    topics_discovered INTEGER DEFAULT 0,
+    avg_confidence REAL DEFAULT 0.0,
+    api_calls_made INTEGER DEFAULT 0,
+    api_errors INTEGER DEFAULT 0,
+    response_time_ms INTEGER DEFAULT 0,
+    success_rate REAL DEFAULT 0.0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source, date)
 );
 
 -- Video generation jobs
@@ -132,6 +181,15 @@ CREATE TABLE IF NOT EXISTS api_usage (
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_trend_runs_timestamp ON trend_runs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_trending_topics_trend_run_id ON trending_topics(trend_run_id);
+CREATE INDEX IF NOT EXISTS idx_trending_topics_source ON trending_topics(source);
+CREATE INDEX IF NOT EXISTS idx_trending_topics_keyword ON trending_topics(keyword);
+CREATE INDEX IF NOT EXISTS idx_trending_topics_category ON trending_topics(category);
+CREATE INDEX IF NOT EXISTS idx_trending_topics_created_at ON trending_topics(created_at);
+CREATE INDEX IF NOT EXISTS idx_aggregated_trends_keyword ON aggregated_trends(keyword);
+CREATE INDEX IF NOT EXISTS idx_aggregated_trends_normalized_keyword ON aggregated_trends(normalized_keyword);
+CREATE INDEX IF NOT EXISTS idx_aggregated_trends_created_at ON aggregated_trends(created_at);
+CREATE INDEX IF NOT EXISTS idx_aggregated_trends_confidence ON aggregated_trends(confidence);
+CREATE INDEX IF NOT EXISTS idx_trend_source_metrics_source_date ON trend_source_metrics(source, date);
 CREATE INDEX IF NOT EXISTS idx_video_jobs_status ON video_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_video_jobs_created_at ON video_jobs(created_at);
 CREATE INDEX IF NOT EXISTS idx_youtube_uploads_video_job_id ON youtube_uploads(video_job_id);

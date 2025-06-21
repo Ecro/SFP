@@ -861,4 +861,339 @@ router.post('/test/complete-pipeline', async (req, res) => {
   }
 });
 
+// Enhanced Multi-Source Trend Discovery Endpoints
+
+// Test Naver API connection
+router.post('/test/naver', async (req, res) => {
+  try {
+    const { NaverTrendsService } = await import('../../services/naverTrendsService');
+    const naverService = new NaverTrendsService();
+    
+    const isConfigured = naverService.isConfigured();
+    if (!isConfigured) {
+      return res.json({
+        success: false,
+        message: 'Naver API credentials not configured'
+      });
+    }
+    
+    const isConnected = await naverService.testConnection();
+    
+    res.json({
+      success: isConnected,
+      message: isConnected ? 'Naver API connection successful' : 'Naver API connection failed',
+      configured: isConfigured,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Naver API test failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Test YouTube API connection for trends
+router.post('/test/youtube-trends', async (req, res) => {
+  try {
+    const { YouTubeTrendsService } = await import('../../services/youtubeTrendsService');
+    const youtubeService = new YouTubeTrendsService();
+    
+    const isConfigured = youtubeService.isConfigured();
+    if (!isConfigured) {
+      return res.json({
+        success: false,
+        message: 'YouTube API key not configured'
+      });
+    }
+    
+    const isConnected = await youtubeService.testConnection();
+    
+    res.json({
+      success: isConnected,
+      message: isConnected ? 'YouTube API connection successful' : 'YouTube API connection failed',
+      configured: isConfigured,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'YouTube API test failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get multi-source trend discovery results
+router.get('/trends/multi-source', async (req, res) => {
+  try {
+    const { TrendsService } = await import('../../services/trendsService');
+    const trendsService = new TrendsService();
+    
+    logger.info('Multi-source trend discovery requested via API');
+    
+    const result = await trendsService.discoverTrends();
+    
+    res.json({
+      success: true,
+      message: 'Multi-source trend discovery completed',
+      data: {
+        topics: result.topics,
+        selectedTopic: result.selectedTopic,
+        sources: result.sources,
+        totalTopicsDiscovered: result.totalTopicsDiscovered,
+        timestamp: result.timestamp
+      }
+    });
+  } catch (error) {
+    logger.error('Multi-source trend discovery error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to discover multi-source trends',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get Naver trending keywords
+router.get('/trends/naver', async (req, res) => {
+  try {
+    const { NaverTrendsService } = await import('../../services/naverTrendsService');
+    const naverService = new NaverTrendsService();
+    
+    if (!naverService.isConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Naver API not configured'
+      });
+    }
+    
+    const trendingKeywords = await naverService.discoverTrendingKeywords();
+    
+    res.json({
+      success: true,
+      message: 'Naver trending keywords retrieved successfully',
+      data: {
+        keywords: trendingKeywords,
+        count: trendingKeywords.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Naver trends API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get Naver trending keywords',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get YouTube trending videos/topics
+router.get('/trends/youtube', async (req, res) => {
+  try {
+    const { YouTubeTrendsService } = await import('../../services/youtubeTrendsService');
+    const youtubeService = new YouTubeTrendsService();
+    
+    if (!youtubeService.isConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'YouTube API not configured'
+      });
+    }
+    
+    const categoryId = req.query.categoryId as string;
+    const maxResults = parseInt(req.query.maxResults as string) || 20;
+    
+    const trendingVideos = await youtubeService.getTrendingVideos('KR', categoryId, maxResults);
+    
+    res.json({
+      success: true,
+      message: 'YouTube trending videos retrieved successfully',
+      data: {
+        videos: trendingVideos,
+        count: trendingVideos.length,
+        categoryId: categoryId || 'all',
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('YouTube trends API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get YouTube trending videos',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get aggregated trend analysis
+router.get('/trends/aggregated', async (req, res) => {
+  try {
+    const { TrendAggregationService } = await import('../../services/trendAggregationService');
+    const aggregationService = new TrendAggregationService();
+    
+    const analytics = await aggregationService.analyzeRealTimeTrends();
+    
+    res.json({
+      success: true,
+      message: 'Trend aggregation analysis completed',
+      data: analytics
+    });
+  } catch (error) {
+    logger.error('Trend aggregation API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get aggregated trend analysis',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get trend source performance metrics
+router.get('/trends/source-metrics', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days as string) || 7;
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    
+    const metrics = await db.all(`
+      SELECT 
+        source,
+        AVG(avg_confidence) as avg_confidence,
+        SUM(topics_discovered) as total_topics,
+        AVG(success_rate) as avg_success_rate,
+        AVG(response_time_ms) as avg_response_time,
+        COUNT(*) as days_tracked
+      FROM trend_source_metrics 
+      WHERE date >= date('now', '-${days} days')
+      GROUP BY source
+      ORDER BY total_topics DESC
+    `, []);
+    
+    res.json({
+      success: true,
+      message: 'Trend source metrics retrieved successfully',
+      data: {
+        metrics,
+        period: `${days} days`,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Trend source metrics API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get trend source metrics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get cross-platform validated trends
+router.get('/trends/cross-validated', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    
+    const crossValidatedTrends = await db.all(`
+      SELECT 
+        at.*,
+        COUNT(DISTINCT tt.source) as source_count
+      FROM aggregated_trends at
+      LEFT JOIN trending_topics tt ON tt.keyword = at.keyword
+      WHERE at.cross_platform_validation = 1
+      GROUP BY at.id
+      HAVING source_count > 1
+      ORDER BY at.confidence DESC, at.aggregated_score DESC
+      LIMIT ?
+    `, [limit]);
+    
+    res.json({
+      success: true,
+      message: 'Cross-validated trends retrieved successfully',
+      data: {
+        trends: crossValidatedTrends,
+        count: crossValidatedTrends.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Cross-validated trends API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get cross-validated trends',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Search trends by keyword or category
+router.get('/trends/search', async (req, res) => {
+  try {
+    const query = req.query.q as string;
+    const category = req.query.category as string;
+    const source = req.query.source as string;
+    const limit = parseInt(req.query.limit as string) || 50;
+    
+    if (!query && !category && !source) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query, category, or source parameter required'
+      });
+    }
+    
+    const { Database } = await import('../../database/connection');
+    const db = Database.getInstance();
+    
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+    
+    if (query) {
+      whereClause += ' AND (keyword LIKE ? OR related_queries LIKE ?)';
+      params.push(`%${query}%`, `%${query}%`);
+    }
+    
+    if (category) {
+      whereClause += ' AND category = ?';
+      params.push(category);
+    }
+    
+    if (source) {
+      whereClause += ' AND source = ?';
+      params.push(source);
+    }
+    
+    params.push(limit);
+    
+    const trends = await db.all(`
+      SELECT *
+      FROM trending_topics
+      ${whereClause}
+      ORDER BY score DESC, created_at DESC
+      LIMIT ?
+    `, params);
+    
+    res.json({
+      success: true,
+      message: 'Trend search completed',
+      data: {
+        trends,
+        count: trends.length,
+        query: { query, category, source },
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Trend search API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search trends',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export { router as apiRoutes };
