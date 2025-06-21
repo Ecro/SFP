@@ -20,6 +20,7 @@ export interface VideoJobConfig {
   skipUpload?: boolean; // For testing video generation only
   thumbnailStyle?: 'vibrant' | 'minimalist' | 'bold' | 'educational' | 'entertainment';
   privacy?: 'private' | 'public' | 'unlisted';
+  predefinedScript?: GeneratedScript; // For using pre-generated scripts from storyline tests
 }
 
 export interface VideoJobResult {

@@ -257,4 +257,21 @@ router.get('/settings', async (req, res) => {
   }
 });
 
+// Storyline testing page
+router.get('/storyline-test', async (req, res) => {
+  try {
+    res.render('dashboard/storyline-test', {
+      title: 'Storyline Test Generator',
+      activeTab: 'storyline-test'
+    });
+  } catch (error) {
+    logger.error('Storyline test page error:', error);
+    res.status(500).render('error', {
+      title: 'Storyline Test Error',
+      message: 'Failed to load storyline test page',
+      error
+    });
+  }
+});
+
 export { router as dashboardRoutes };
