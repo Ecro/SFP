@@ -17,38 +17,6 @@ const systemLogModel = new SystemLogModel();
 const trendCollector = new TrendCollector();
 const videoOrchestrator = new VideoJobOrchestrator();
 
-// Manual trigger for trend discovery
-router.post('/trigger/trends', async (req, res) => {
-  try {
-    logger.info('Manual trend discovery triggered via API');
-    
-    const result = await trendCollector.runOnce();
-    
-    if (result) {
-      res.json({
-        success: true,
-        message: 'Trend discovery completed successfully',
-        data: {
-          selectedTopic: result.selectedTopic?.keyword,
-          topicsFound: result.topics.length,
-          timestamp: result.timestamp
-        }
-      });
-    } else {
-      res.json({
-        success: false,
-        message: 'Trend discovery failed or returned no results'
-      });
-    }
-  } catch (error) {
-    logger.error('API trend trigger error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to trigger trend discovery',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
 
 // Get current system status
 router.get('/status', async (req, res) => {
@@ -86,82 +54,7 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// Get trend statistics
-router.get('/stats/trends', async (req, res) => {
-  try {
-    const days = parseInt(req.query.days as string) || 7;
-    
-    const [
-      successRate,
-      topKeywords,
-      recentTrends
-    ] = await Promise.all([
-      trendRunModel.getSuccessRate(days),
-      trendingTopicModel.getTopKeywords(days, 10),
-      trendRunModel.getRecent(days * 2) // Get more data for chart
-    ]);
 
-    // Prepare chart data
-    const chartData = recentTrends.slice(0, days).reverse().map(trend => ({
-      date: trend.timestamp?.split('T')[0],
-      success: trend.status === 'completed' ? 1 : 0,
-      topicsFound: trend.topics_found || 0,
-      executionTime: trend.execution_time_ms || 0
-    }));
-
-    res.json({
-      successRate,
-      topKeywords,
-      chartData,
-      summary: {
-        totalRuns: recentTrends.length,
-        successfulRuns: recentTrends.filter(t => t.status === 'completed').length,
-        averageTopics: recentTrends.reduce((sum, t) => sum + (t.topics_found || 0), 0) / recentTrends.length
-      }
-    });
-  } catch (error) {
-    logger.error('API trend stats error:', error);
-    res.status(500).json({
-      error: error instanceof Error ? error.message : 'Failed to get trend statistics'
-    });
-  }
-});
-
-// Get recent logs with filtering
-router.get('/logs', async (req, res) => {
-  try {
-    const level = req.query.level as string;
-    const context = req.query.context as string;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const since = req.query.since as string; // ISO timestamp
-
-    let logs;
-    if (level && level !== 'all') {
-      logs = await systemLogModel.getByLevel(level, limit);
-    } else if (context && context !== 'all') {
-      logs = await systemLogModel.getByContext(context, limit);
-    } else {
-      logs = await systemLogModel.getRecent(limit);
-    }
-
-    // Filter by timestamp if provided
-    if (since) {
-      const sinceDate = new Date(since);
-      logs = logs.filter(log => new Date(log.timestamp || 0) > sinceDate);
-    }
-
-    res.json({
-      logs,
-      total: logs.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('API logs error:', error);
-    res.status(500).json({
-      error: error instanceof Error ? error.message : 'Failed to get logs'
-    });
-  }
-});
 
 // Get pipeline status details
 router.get('/pipeline', async (req, res) => {

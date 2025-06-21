@@ -92,12 +92,7 @@ function showNotification(message, type) {
     }, 5000);
 }
 
-// Storyline testing functions
-async function runStorylineTest() {
-    // This function is defined in the storyline-test.ejs page
-    // Keeping this as a placeholder for global access
-    console.log('runStorylineTest called - should be handled by page-specific script');
-}
+// Storyline testing functions are defined in the storyline.ejs page
 
 async function triggerStorylineGeneration(options = {}) {
     try {
@@ -180,8 +175,8 @@ function handleWebSocketMessage(data) {
             break;
         case 'storyline_test_complete':
             showNotification(`Storyline test completed: ${data.data.storylinesGenerated} suggestions created`, 'success');
-            // Refresh storyline test page if we're on it
-            if (window.location.pathname.includes('storyline-test')) {
+            // Refresh storyline page if we're on it
+            if (window.location.pathname.includes('storyline')) {
                 setTimeout(() => window.location.reload(), 2000);
             }
             break;
@@ -437,10 +432,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Enhanced keyboard shortcuts
     document.addEventListener('keydown', function(e) {
-        // Ctrl+Shift+T to go to storyline test
+        // Ctrl+Shift+T to go to storyline
         if (e.ctrlKey && e.shiftKey && e.key === 'T') {
             e.preventDefault();
-            navigateWithTransition('/admin/storyline-test');
+            navigateWithTransition('/admin/storyline');
         }
         
         // Ctrl+Shift+D to go to dashboard

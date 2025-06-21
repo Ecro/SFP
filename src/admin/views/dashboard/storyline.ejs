@@ -12,8 +12,7 @@
                             <i class="bi bi-lightbulb"></i>
                         </div>
                         <div class="header-info">
-                            <h5 class="mb-0">Storyline Test Generator</h5>
-                            <p class="mb-0 text-muted">Generate AI-powered video storyline suggestions from trending topics</p>
+                            <h5 class="mb-0">Storyline</h5>
                         </div>
                     </div>
                     <div class="header-actions-test">
@@ -31,16 +30,10 @@
                 <div id="testForm" class="mb-4">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="categoryInput" class="form-label">
-                                Category Filter (Optional)
-                                <small class="text-muted">- Leave blank for all trending topics</small>
-                            </label>
+                            <label for="categoryInput" class="form-label">Category Filter</label>
                             <input type="text" class="form-control" id="categoryInput" 
-                                   placeholder="e.g., technology, lifestyle, entertainment..."
+                                   placeholder="technology, lifestyle, entertainment..."
                                    autocomplete="off">
-                            <div class="form-text">
-                                Enter a category to focus trends, or leave blank to discover from all categories
-                            </div>
                         </div>
                         <div class="col-md-3">
                             <label for="contentStyleSelect" class="form-label">Content Style</label>
@@ -52,11 +45,11 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label for="limitSelect" class="form-label">Suggestions Count</label>
+                            <label for="limitSelect" class="form-label">Count</label>
                             <select class="form-select" id="limitSelect">
-                                <option value="5">5 Suggestions</option>
-                                <option value="10" selected>10 Suggestions</option>
-                                <option value="15">15 Suggestions</option>
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="15">15</option>
                             </select>
                         </div>
                     </div>
@@ -64,11 +57,8 @@
                         <div class="col-12">
                             <button type="button" class="btn btn-primary btn-lg" onclick="runStorylineTest()" id="runTestBtn">
                                 <i class="bi bi-play-circle"></i>
-                                Run Test
+                                Generate
                             </button>
-                            <small class="text-muted ms-3">
-                                This will analyze current trends and generate storyline suggestions (no cost until you click "Go")
-                            </small>
                         </div>
                     </div>
                 </div>
@@ -78,11 +68,9 @@
                     <div class="spinner-border text-primary mb-3" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <h5>Analyzing Current Trends...</h5>
+                    <h5>Generating Storylines...</h5>
                     <p class="text-muted">
-                        Discovering trending topics and generating storyline suggestions...
-                        <br>
-                        <span id="loadingStep">Fetching trends from multiple sources...</span>
+                        <span id="loadingStep">Analyzing trends...</span>
                     </p>
                     <div class="progress mx-auto" style="max-width: 400px;">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" 
@@ -96,7 +84,7 @@
                     <div class="alert alert-success" id="testSummary">
                         <h6 class="alert-heading">
                             <i class="bi bi-check-circle"></i>
-                            Test Completed Successfully!
+                            Generation Complete!
                         </h6>
                         <p class="mb-0" id="summaryText"></p>
                     </div>
@@ -110,31 +98,7 @@
                 <!-- Empty State -->
                 <div id="emptyState" class="text-center py-5">
                     <i class="bi bi-lightbulb text-muted" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3 text-muted">Ready to Generate Storylines</h4>
-                    <p class="text-muted mb-4">
-                        Enter an optional category filter and click "Run Test" to discover trending topics<br>
-                        and generate 10 engaging video storyline suggestions.
-                    </p>
-                    <div class="d-flex justify-content-center gap-3">
-                        <div class="text-center">
-                            <i class="bi bi-search text-info" style="font-size: 2rem;"></i>
-                            <div class="small text-muted mt-1">Trend Discovery</div>
-                        </div>
-                        <div class="text-center">
-                            <i class="bi bi-arrow-right text-muted" style="font-size: 1.5rem;"></i>
-                        </div>
-                        <div class="text-center">
-                            <i class="bi bi-robot text-warning" style="font-size: 2rem;"></i>
-                            <div class="small text-muted mt-1">AI Script Generation</div>
-                        </div>
-                        <div class="text-center">
-                            <i class="bi bi-arrow-right text-muted" style="font-size: 1.5rem;"></i>
-                        </div>
-                        <div class="text-center">
-                            <i class="bi bi-collection-play text-success" style="font-size: 2rem;"></i>
-                            <div class="small text-muted mt-1">10 Storylines</div>
-                        </div>
-                    </div>
+                    <h4 class="mt-3 text-muted">Ready to Generate</h4>
                 </div>
             </div>
         </div>
@@ -173,7 +137,7 @@
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-clock-history"></i>
-                    Storyline Test History
+                    History
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -200,7 +164,7 @@ async function runStorylineTest() {
     document.getElementById('runTestBtn').disabled = true;
     
     // Simulate loading progress
-    updateLoadingProgress(20, 'Analyzing current trends...');
+    updateLoadingProgress(20, 'Analyzing trends...');
     
     try {
         const response = await fetch('/api/test/storylines', {
@@ -216,7 +180,7 @@ async function runStorylineTest() {
             })
         });
         
-        updateLoadingProgress(60, 'Generating storyline scripts...');
+        updateLoadingProgress(60, 'Generating scripts...');
         
         const result = await response.json();
         
@@ -224,7 +188,7 @@ async function runStorylineTest() {
             throw new Error(result.message || 'Failed to generate storylines');
         }
         
-        updateLoadingProgress(90, 'Finalizing suggestions...');
+        updateLoadingProgress(90, 'Finalizing...');
         
         // Small delay for UX
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -510,8 +474,7 @@ async function showTestHistory() {
             historyBody.innerHTML = `
                 <div class="text-center py-4">
                     <i class="bi bi-clock-history text-muted" style="font-size: 3rem;"></i>
-                    <h5 class="mt-3 text-muted">No Test History</h5>
-                    <p class="text-muted">Run your first storyline test to see history here.</p>
+                    <h5 class="mt-3 text-muted">No History</h5>
                 </div>
             `;
         } else {

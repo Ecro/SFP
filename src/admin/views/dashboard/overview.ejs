@@ -9,21 +9,18 @@
                 <div class="metric-content">
                     <div class="metric-header">
                         <div class="metric-icon success">
-                            <i class="bi bi-check-circle-fill"></i>
+                            <i class="bi bi-lightbulb-fill"></i>
                         </div>
                         <div class="metric-info">
-                            <h6 class="metric-label">Success Rate</h6>
-                            <div class="metric-value"><%= successRate.toFixed(1) %>%</div>
-                            <div class="metric-subtitle">Last 7 days</div>
+                            <h6 class="metric-label">Storylines Generated</h6>
+                            <div class="metric-value">0</div>
                         </div>
                     </div>
-                    <div class="metric-progress">
-                        <div class="progress-container">
-                            <div class="progress-bar-modern" style="width: <%= successRate %>%"></div>
-                        </div>
-                        <div class="progress-labels">
-                            <span class="progress-label">Performance</span>
-                            <span class="progress-percentage"><%= successRate.toFixed(0) %>%</span>
+                    <div class="metric-status">
+                        <div class="status-pills">
+                            <span class="status-pill success">
+                                <i class="bi bi-check2"></i> Ready
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -37,23 +34,22 @@
                 <div class="metric-content">
                     <div class="metric-header">
                         <div class="metric-icon info">
-                            <i class="bi bi-graph-up"></i>
+                            <i class="bi bi-collection-play"></i>
                         </div>
                         <div class="metric-info">
-                            <h6 class="metric-label">Trending Topics</h6>
-                            <div class="metric-value"><%= recentTrends.length %></div>
-                            <div class="metric-subtitle">Recent discoveries</div>
+                            <h6 class="metric-label">Total Videos</h6>
+                            <div class="metric-value"><%= recentJobs.length %></div>
                         </div>
                     </div>
                     <div class="metric-chart">
                         <div class="trend-sparkline">
                             <span class="spark-dot active"></span>
                             <span class="spark-dot active"></span>
+                            <span class="spark-dot active"></span>
                             <span class="spark-dot"></span>
                             <span class="spark-dot active"></span>
-                            <span class="spark-dot active"></span>
                         </div>
-                        <div class="chart-label">+<%= Math.floor(Math.random() * 15) + 5 %>% this week</div>
+                        <div class="chart-label">Recent activity</div>
                     </div>
                 </div>
             </div>
@@ -71,7 +67,6 @@
                         <div class="metric-info">
                             <h6 class="metric-label">Video Pipeline</h6>
                             <div class="metric-value"><%= recentJobs.length %></div>
-                            <div class="metric-subtitle">Active jobs</div>
                         </div>
                     </div>
                     <div class="metric-status">
@@ -95,12 +90,11 @@
                 <div class="metric-content">
                     <div class="metric-header">
                         <div class="metric-icon primary">
-                            <i class="bi bi-heart-pulse"></i>
+                            <i class="bi bi-activity"></i>
                         </div>
                         <div class="metric-info">
-                            <h6 class="metric-label">System Health</h6>
-                            <div class="metric-value">100%</div>
-                            <div class="metric-subtitle">All systems operational</div>
+                            <h6 class="metric-label">System Status</h6>
+                            <div class="metric-value">Online</div>
                         </div>
                     </div>
                     <div class="metric-status">
@@ -108,10 +102,6 @@
                             <div class="health-item">
                                 <span class="health-dot active"></span>
                                 <span class="health-label">Database</span>
-                            </div>
-                            <div class="health-item">
-                                <span class="health-dot active"></span>
-                                <span class="health-label">APIs</span>
                             </div>
                             <div class="health-item">
                                 <span class="health-dot active"></span>
@@ -127,45 +117,21 @@
 
 <!-- Recent Activity -->
 <div class="row">
-    <!-- Recent Trend Discoveries -->
+    <!-- Recent Storylines -->
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent Trend Discoveries</h5>
-                <a href="/admin/trends" class="btn btn-sm btn-outline-primary">View All</a>
+                <h5 class="mb-0">Recent Storylines</h5>
+                <a href="/admin/storyline" class="btn btn-sm btn-outline-primary">Generate New</a>
             </div>
             <div class="card-body">
-                <% if (recentTrends.length > 0) { %>
-                    <% recentTrends.forEach(function(trend) { %>
-                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                            <div>
-                                <div class="fw-bold">
-                                    <span class="status-indicator <%= trend.status === 'completed' ? 'status-success' : trend.status === 'failed' ? 'status-danger' : 'status-warning' %>"></span>
-                                    <%= trend.selected_topic || 'No topic selected' %>
-                                </div>
-                                <small class="text-muted">
-                                    <%= trend.topics_found || 0 %> topics found
-                                    <% if (trend.execution_time_ms) { %>
-                                        • <%= (trend.execution_time_ms / 1000).toFixed(1) %>s
-                                    <% } %>
-                                </small>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-muted">
-                                    <%= new Date(trend.timestamp || '').toLocaleString() %>
-                                </small>
-                            </div>
-                        </div>
-                    <% }); %>
-                <% } else { %>
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-graph-up" style="font-size: 3rem;"></i>
-                        <div class="mt-2">No trend discoveries yet</div>
-                        <button class="btn btn-primary btn-sm mt-2" onclick="triggerTrendDiscovery()">
-                            Run First Discovery
-                        </button>
-                    </div>
-                <% } %>
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-lightbulb" style="font-size: 3rem;"></i>
+                    <div class="mt-2">No storylines generated yet</div>
+                    <button class="btn btn-primary btn-sm mt-2" onclick="window.location.href='/admin/storyline'">
+                        Generate First Storyline
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -216,117 +182,38 @@
     </div>
 </div>
 
-<!-- Top Keywords and System Logs -->
+<!-- Quick Actions -->
 <div class="row">
-    <!-- Top Keywords -->
-    <div class="col-md-6 mb-4">
+    <div class="col-12 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Top Keywords (7 days)</h5>
-            </div>
-            <div class="card-body">
-                <% if (topKeywords.length > 0) { %>
-                    <% topKeywords.forEach(function(keyword, index) { %>
-                        <div class="d-flex justify-content-between align-items-center py-2 <%= index < topKeywords.length - 1 ? 'border-bottom' : '' %>">
-                            <div>
-                                <div class="fw-bold"><%= keyword.keyword %></div>
-                                <small class="text-muted">
-                                    <%= keyword.category %> • <%= keyword.appearances %> appearances
-                                </small>
-                            </div>
-                            <div class="text-end">
-                                <div class="fw-bold text-primary">
-                                    <%= parseInt(keyword.avg_predicted_views).toLocaleString() %>
-                                </div>
-                                <small class="text-muted">avg views</small>
-                            </div>
-                        </div>
-                    <% }); %>
-                <% } else { %>
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-tag" style="font-size: 3rem;"></i>
-                        <div class="mt-2">No keyword data yet</div>
-                    </div>
-                <% } %>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent System Logs -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent System Logs</h5>
-                <a href="/admin/logs" class="btn btn-sm btn-outline-primary">View All</a>
-            </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <% if (recentLogs.length > 0) { %>
-                    <% recentLogs.forEach(function(log) { %>
-                        <div class="log-entry mb-2 p-2 border-start border-3 <%= 
-                            log.level === 'error' ? 'border-danger bg-danger bg-opacity-10' : 
-                            log.level === 'warn' ? 'border-warning bg-warning bg-opacity-10' : 
-                            log.level === 'info' ? 'border-info bg-info bg-opacity-10' : 
-                            'border-secondary bg-light' 
-                        %>">
-                            <div class="d-flex justify-content-between">
-                                <span class="badge bg-<%= 
-                                    log.level === 'error' ? 'danger' : 
-                                    log.level === 'warn' ? 'warning' : 
-                                    log.level === 'info' ? 'info' : 'secondary' 
-                                %>"><%= log.level.toUpperCase() %></span>
-                                <small class="text-muted">
-                                    <%= new Date(log.timestamp || '').toLocaleTimeString() %>
-                                </small>
-                            </div>
-                            <div class="mt-1">
-                                <small class="text-muted">[<%= log.context %>]</small>
-                                <%= log.message %>
-                            </div>
-                        </div>
-                    <% }); %>
-                <% } else { %>
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-file-text" style="font-size: 3rem;"></i>
-                        <div class="mt-2">No recent logs</div>
-                    </div>
-                <% } %>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Manual Controls -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Manual Controls</h5>
+                <h5 class="mb-0">Quick Actions</h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <div class="d-grid">
-                            <button class="btn btn-primary" onclick="triggerTrendDiscovery()">
-                                <i class="bi bi-play-circle"></i> Run Trend Discovery
+                            <button class="btn btn-primary btn-lg" onclick="window.location.href='/admin/storyline'">
+                                <i class="bi bi-lightbulb"></i> Generate Storylines
                             </button>
                         </div>
-                        <small class="text-muted mt-1 d-block">Manually trigger trend analysis</small>
+                        <small class="text-muted mt-2 d-block">Create new video storyline ideas</small>
                     </div>
                     <div class="col-md-4 mb-3">
                         <div class="d-grid">
-                            <button class="btn btn-outline-secondary" onclick="testConnections()">
-                                <i class="bi bi-wifi"></i> Test Connections
+                            <button class="btn btn-outline-info btn-lg" onclick="window.location.href='/admin/pipeline'">
+                                <i class="bi bi-diagram-3"></i> View Pipeline
                             </button>
                         </div>
-                        <small class="text-muted mt-1 d-block">Test API connections</small>
+                        <small class="text-muted mt-2 d-block">Monitor video production status</small>
                     </div>
                     <div class="col-md-4 mb-3">
                         <div class="d-grid">
-                            <button class="btn btn-outline-info" onclick="refreshData()">
-                                <i class="bi bi-arrow-clockwise"></i> Refresh Dashboard
+                            <button class="btn btn-outline-secondary btn-lg" onclick="refreshData()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
                         </div>
-                        <small class="text-muted mt-1 d-block">Reload all data</small>
+                        <small class="text-muted mt-2 d-block">Reload dashboard data</small>
                     </div>
                 </div>
             </div>
@@ -334,22 +221,16 @@
     </div>
 </div>
 
+
 <script>
 function testConnections() {
     showNotification('Testing connections...', 'info');
     
-    Promise.all([
-        fetch('/api/test/database', { method: 'POST' }).then(r => r.json()),
-        fetch('/api/test/trends-api', { method: 'POST' }).then(r => r.json())
-    ]).then(results => {
-        const [dbResult, trendsResult] = results;
-        
-        let message = 'Connection Test Results:\n';
-        message += `Database: ${dbResult.success ? 'OK' : 'FAILED'}\n`;
-        message += `Google Trends: ${trendsResult.success ? 'OK' : 'FAILED'}`;
-        
-        const allGood = dbResult.success && trendsResult.success;
-        showNotification(message, allGood ? 'success' : 'error');
+    fetch('/api/test/database', { method: 'POST' })
+        .then(r => r.json())
+        .then(result => {
+            const message = `Database Connection: ${result.success ? 'OK' : 'FAILED'}`;
+            showNotification(message, result.success ? 'success' : 'error');
     }).catch(error => {
         showNotification('Connection test failed', 'error');
     });

@@ -31,19 +31,10 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link <%= activeTab === 'trends' ? 'active' : '' %>" href="/admin/trends">
-                                <i class="bi bi-graph-up"></i>
-                                <span>Trend Analysis</span>
-                                <% if (activeTab === 'trends') { %>
-                                    <div class="nav-indicator"></div>
-                                <% } %>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link <%= activeTab === 'storyline-test' ? 'active' : '' %>" href="/admin/storyline-test">
+                            <a class="nav-link <%= activeTab === 'storyline' ? 'active' : '' %>" href="/admin/storyline">
                                 <i class="bi bi-lightbulb"></i>
-                                <span>Storyline Test</span>
-                                <% if (activeTab === 'storyline-test') { %>
+                                <span>Storyline</span>
+                                <% if (activeTab === 'storyline') { %>
                                     <div class="nav-indicator"></div>
                                 <% } %>
                             </a>
@@ -57,33 +48,6 @@
                                 <% } %>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link <%= activeTab === 'analytics' ? 'active' : '' %>" href="/admin/analytics">
-                                <i class="bi bi-bar-chart"></i>
-                                <span>Analytics</span>
-                                <% if (activeTab === 'analytics') { %>
-                                    <div class="nav-indicator"></div>
-                                <% } %>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link <%= activeTab === 'logs' ? 'active' : '' %>" href="/admin/logs">
-                                <i class="bi bi-file-text"></i>
-                                <span>System Logs</span>
-                                <% if (activeTab === 'logs') { %>
-                                    <div class="nav-indicator"></div>
-                                <% } %>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link <%= activeTab === 'settings' ? 'active' : '' %>" href="/admin/settings">
-                                <i class="bi bi-gear"></i>
-                                <span>Settings</span>
-                                <% if (activeTab === 'settings') { %>
-                                    <div class="nav-indicator"></div>
-                                <% } %>
-                            </a>
-                        </li>
                     </ul>
                 </div>
 
@@ -93,15 +57,11 @@
                         <span class="nav-header-text">QUICK ACTIONS</span>
                     </div>
                     <div class="quick-actions">
-                        <button class="quick-action-btn primary" onclick="triggerTrendDiscovery()" title="Run Trend Discovery">
-                            <i class="bi bi-play-circle"></i>
-                            <span>Run Trends</span>
-                        </button>
-                        <button class="quick-action-btn warning" onclick="window.location.href='/admin/storyline-test'" title="Test Storylines">
+                        <button class="quick-action-btn warning" onclick="window.location.href='/admin/storyline'">
                             <i class="bi bi-lightbulb"></i>
-                            <span>Test Ideas</span>
+                            <span>Storyline</span>
                         </button>
-                        <button class="quick-action-btn secondary" onclick="refreshData()" title="Refresh Dashboard">
+                        <button class="quick-action-btn secondary" onclick="refreshData()">
                             <i class="bi bi-arrow-clockwise"></i>
                             <span>Refresh</span>
                         </button>
