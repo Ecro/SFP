@@ -52,3 +52,7 @@ temp/
 videos/
 thumbnails/
 audio/
+
+.env
+node_modules/
+.claude/
