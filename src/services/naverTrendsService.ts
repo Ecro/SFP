@@ -64,7 +64,7 @@ export class NaverTrendsService {
       };
 
       const response: AxiosResponse<NaverSearchTrendData> = await axios.post(
-        `${this.baseUrl}/v1/search`,
+        `${this.baseUrl}/search`,
         requestBody,
         {
           headers: {
