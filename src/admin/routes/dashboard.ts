@@ -102,7 +102,8 @@ router.get('/trends/:id', async (req, res) => {
     res.render('dashboard/trend-details', {
       title: `Trend Run #${trendId}`,
       trend,
-      topics
+      topics,
+      activeTab: 'trends'
     });
   } catch (error) {
     logger.error('Trend details error:', error);
@@ -187,7 +188,8 @@ router.get('/analytics', async (req, res) => {
       success30d,
       topKeywords30d,
       trendStats,
-      selectedDays: days
+      selectedDays: days,
+      activeTab: 'analytics'
     });
   } catch (error) {
     logger.error('Analytics page error:', error);
