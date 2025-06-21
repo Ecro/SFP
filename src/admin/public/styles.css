@@ -1,22 +1,40 @@
+:root {
+    --bg-primary: #1A1B2E;
+    --bg-card: #252A48;
+    --accent: #6F44FF;
+    --accent-light: #8C6FFF;
+    --text-primary: #F4F5FC;
+    --text-secondary: #B0B2CC;
+    --border: #313454;
+    --success: #4CAF8C;
+    --warning: #FF9B2F;
+    --error: #FF5F69;
+}
+
 body {
-    background-color: #f8f9fa;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .sidebar {
     min-height: 100vh;
-    background-color: #1f2937;
+    background-color: var(--bg-card);
+    transition: background-color 0.2s ease;
 }
 .sidebar .nav-link {
-    color: #cbd5e1;
+    color: var(--text-secondary);
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 .sidebar .nav-link:hover {
-    color: #ffffff;
-    background-color: #374151;
+    color: var(--text-primary);
+    background-color: rgba(111, 68, 255, 0.1);
 }
 .sidebar .nav-link.active {
-    color: #ffffff;
-    background-color: #6366f1;
+    color: var(--text-primary);
+    background-color: var(--accent);
 }
+
 .status-indicator {
     width: 12px;
     height: 12px;
@@ -24,17 +42,52 @@ body {
     display: inline-block;
     margin-right: 8px;
 }
-.status-success { background-color: #10b981; }
-.status-warning { background-color: #f59e0b; }
-.status-danger { background-color: #ef4444; }
-.status-info { background-color: #6366f1; }
+.status-success { background-color: var(--success); }
+.status-warning { background-color: var(--warning); }
+.status-danger { background-color: var(--error); }
+.status-info { background-color: var(--accent); }
+
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: background-color 0.2s ease;
+    color: var(--text-primary);
+}
+
 .log-entry {
     font-family: 'Courier New', monospace;
     font-size: 0.9em;
 }
+
 .metric-card {
-    border-left: 4px solid #6366f1;
+    border-left: 4px solid var(--accent);
 }
+
+.btn-primary {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.btn-primary:hover {
+    background-color: var(--accent-light);
+    border-color: var(--accent-light);
+}
+.btn-outline-primary {
+    color: var(--accent);
+    border-color: var(--accent);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.btn-outline-primary:hover {
+    background-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.progress-bar.bg-primary {
+    background-color: var(--accent);
+}
+
 .live-update {
     animation: pulse 2s infinite;
 }
