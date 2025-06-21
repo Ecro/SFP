@@ -1,303 +1,455 @@
-<% locals.activeTab = 'pipeline' %>
-
-<!-- Pipeline Status Cards -->
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="bi bi-clock text-warning" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 text-warning"><%= stats.pending %></h3>
-                <p class="text-muted mb-0">Pending Jobs</p>
-            </div>
-        </div>
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - SFP Admin</title>
     
-    <div class="col-md-3 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="bi bi-gear text-info" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 text-info"><%= stats.running %></h3>
-                <p class="text-muted mb-0">Running</p>
-            </div>
-        </div>
-    </div>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     
-    <div class="col-md-3 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 text-success"><%= stats.completed %></h3>
-                <p class="text-muted mb-0">Completed</p>
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .nav-link.active {
+            background-color: #0d6efd;
+            color: white !important;
+        }
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+        }
+        .status-badge {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .progress-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        .progress-step.completed .step-icon {
+            background-color: #198754;
+            color: white;
+        }
+        .progress-step.active .step-icon {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .progress-step .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.5rem;
+        }
+        .progress-connector {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background-color: #e9ecef;
+            z-index: -1;
+        }
+        .progress-step.completed .progress-connector {
+            background-color: #198754;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar p-3">
+                <h5 class="text-primary mb-4">SFP Admin</h5>
+                <nav class="nav flex-column">
+                    <a class="nav-link <%= locals.activeTab === 'dashboard' ? 'active' : '' %>" href="/admin">
+                        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                    </a>
+                    <a class="nav-link <%= locals.activeTab === 'trends' ? 'active' : '' %>" href="/admin/trends">
+                        <i class="bi bi-graph-up-arrow me-2"></i>Trends
+                    </a>
+                    <a class="nav-link <%= locals.activeTab === 'pipeline' ? 'active' : '' %>" href="/admin/pipeline">
+                        <i class="bi bi-diagram-3 me-2"></i>Pipeline
+                    </a>
+                    <a class="nav-link <%= locals.activeTab === 'logs' ? 'active' : '' %>" href="/admin/logs">
+                        <i class="bi bi-file-text me-2"></i>Logs
+                    </a>
+                    <a class="nav-link <%= locals.activeTab === 'settings' ? 'active' : '' %>" href="/admin/settings">
+                        <i class="bi bi-gear me-2"></i>Settings
+                    </a>
+                </nav>
             </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="bi bi-x-circle text-danger" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 text-danger"><%= stats.failed %></h3>
-                <p class="text-muted mb-0">Failed</p>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Active Jobs -->
-<% if (runningJobs.length > 0) { %>
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Currently Running Jobs</h5>
-            </div>
-            <div class="card-body">
-                <% runningJobs.forEach(function(job) { %>
-                    <div class="alert alert-info d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="fw-bold">
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                <%= job.topic %>
-                            </div>
-                            <small class="text-muted">Status: <%= job.status.replace('_', ' ') %></small>
-                        </div>
-                        <div class="text-end">
-                            <small class="text-muted">
-                                Started: <%= new Date(job.created_at || '').toLocaleString() %>
-                            </small>
-                        </div>
-                    </div>
-                <% }); %>
-            </div>
-        </div>
-    </div>
-</div>
-<% } %>
-
-<!-- Recent Jobs -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent Video Jobs</h5>
-                <button class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
-                </button>
-            </div>
-            <div class="card-body">
-                <% const allJobs = [...pendingJobs, ...runningJobs, ...completedJobs.slice(0, 10), ...failedJobs.slice(0, 5)]; %>
-                <% if (allJobs.length > 0) { %>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Status</th>
-                                    <th>Topic</th>
-                                    <th>Progress</th>
-                                    <th>Duration</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% allJobs.forEach(function(job) { %>
-                                    <tr class="<%= 
-                                        job.status === 'failed' ? 'table-danger' : 
-                                        job.status === 'completed' ? 'table-success' : 
-                                        job.status === 'pending' ? 'table-warning' : 'table-info' 
-                                    %>">
-                                        <td>
-                                            <span class="status-indicator <%= 
-                                                job.status === 'completed' ? 'status-success' : 
-                                                job.status === 'failed' ? 'status-danger' : 
-                                                job.status === 'pending' ? 'status-warning' : 'status-info' 
-                                            %>"></span>
-                                            <%= job.status.replace('_', ' ') %>
-                                        </td>
-                                        <td>
-                                            <div class="fw-bold"><%= job.topic %></div>
-                                            <% if (job.error_message) { %>
-                                                <small class="text-danger">Error: <%= job.error_message %></small>
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <% 
-                                            let progress = 0;
-                                            if (job.status === 'completed') progress = 100;
-                                            else if (job.status === 'video_synthesis') progress = 75;
-                                            else if (job.status === 'narration') progress = 50;
-                                            else if (job.status === 'script_generation') progress = 25;
-                                            else if (job.status === 'pending') progress = 0;
-                                            %>
-                                            <div class="progress" style="width: 100px;">
-                                                <div class="progress-bar <%= 
-                                                    job.status === 'failed' ? 'bg-danger' : 
-                                                    job.status === 'completed' ? 'bg-success' : 'bg-info' 
-                                                %>" style="width: <%= progress %>%"></div>
-                                            </div>
-                                            <small class="text-muted"><%= progress %>%</small>
-                                        </td>
-                                        <td>
-                                            <% if (job.total_duration_seconds) { %>
-                                                <%= job.total_duration_seconds %>s
-                                            <% } else if (job.completed_at && job.created_at) { %>
-                                                <%= Math.round((new Date(job.completed_at).getTime() - new Date(job.created_at).getTime()) / 1000) %>s
-                                            <% } else { %>
-                                                -
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <div><%= new Date(job.created_at || '').toLocaleDateString() %></div>
-                                            <small class="text-muted"><%= new Date(job.created_at || '').toLocaleTimeString() %></small>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary btn-sm" onclick="viewJobDetails(<%= job.id %>)">
-                                                    <i class="bi bi-eye"></i>
-                                                </button>
-                                                <% if (job.status === 'failed') { %>
-                                                    <button class="btn btn-outline-warning btn-sm" onclick="retryJob(<%= job.id %>)">
-                                                        <i class="bi bi-arrow-clockwise"></i>
-                                                    </button>
-                                                <% } %>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <% }); %>
-                            </tbody>
-                        </table>
-                    </div>
-                <% } else { %>
-                    <div class="text-center py-5">
-                        <i class="bi bi-diagram-3 text-muted" style="font-size: 4rem;"></i>
-                        <h4 class="mt-3 text-muted">No Video Jobs Yet</h4>
-                        <p class="text-muted">
-                            Video jobs will appear after successful trend discoveries.<br>
-                            Run a trend discovery to get started.
-                        </p>
-                        <button class="btn btn-primary" onclick="triggerTrendDiscovery()">
-                            <i class="bi bi-play-circle"></i> Run Trend Discovery
+            <!-- Main content -->
+            <main class="col-md-10 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><%= title %></h2>
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                         </button>
-                    </div>
-                <% } %>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Job Details Modal -->
-<div class="modal fade" id="jobDetailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Job Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="jobDetailsContent">
-                <div class="text-center">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                        <div class="text-muted small">
+                            Last updated: <span id="lastUpdated"><%= new Date().toLocaleString() %></span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<script>
-function viewJobDetails(jobId) {
-    const modal = new bootstrap.Modal(document.getElementById('jobDetailsModal'));
-    const content = document.getElementById('jobDetailsContent');
-    
-    // Show loading
-    content.innerHTML = `
-        <div class="text-center">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
-    `;
-    
-    modal.show();
-    
-    // Fetch job details
-    fetch(\`/api/pipeline/job/\${jobId}\`)
-        .then(response => response.json())
-        .then(job => {
-            content.innerHTML = \`
+                <!-- Pipeline Status Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="bi bi-clock text-warning" style="font-size: 2rem;"></i>
+                                <h3 class="mt-2 text-warning"><%= stats.pending %></h3>
+                                <p class="text-muted mb-0">Pending Jobs</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="bi bi-gear text-info" style="font-size: 2rem;"></i>
+                                <h3 class="mt-2 text-info"><%= stats.running %></h3>
+                                <p class="text-muted mb-0">Running</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                                <h3 class="mt-2 text-success"><%= stats.completed %></h3>
+                                <p class="text-muted mb-0">Completed</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="bi bi-x-circle text-danger" style="font-size: 2rem;"></i>
+                                <h3 class="mt-2 text-danger"><%= stats.failed %></h3>
+                                <p class="text-muted mb-0">Failed</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Jobs -->
+                <% if ((runningJobs || []).length > 0) { %>
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-gear me-2"></i>Running Jobs
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <% (runningJobs || []).forEach(job => { %>
+                                <div class="border-bottom pb-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1">Job #<%= job.id %></h6>
+                                            <p class="text-muted mb-1"><%= job.topic %></p>
+                                        </div>
+                                        <span class="badge bg-info status-badge">
+                                            <i class="bi bi-gear me-1"></i><%= job.status.replace('_', ' ').toUpperCase() %>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Progress Steps -->
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <div class="progress-step <%= job.status === 'completed' || ['script_generation', 'narration', 'video_synthesis'].includes(job.status) ? 'completed' : job.status === 'script_generation' ? 'active' : '' %>">
+                                            <div class="step-icon">
+                                                <i class="bi bi-file-text"></i>
+                                            </div>
+                                            <small>Script</small>
+                                            <div class="progress-connector"></div>
+                                        </div>
+                                        <div class="progress-step <%= job.status === 'completed' || ['narration', 'video_synthesis'].includes(job.status) ? 'completed' : job.status === 'narration' ? 'active' : '' %>">
+                                            <div class="step-icon">
+                                                <i class="bi bi-mic"></i>
+                                            </div>
+                                            <small>Audio</small>
+                                            <div class="progress-connector"></div>
+                                        </div>
+                                        <div class="progress-step <%= job.status === 'completed' || job.status === 'video_synthesis' ? 'completed' : job.status === 'video_synthesis' ? 'active' : '' %>">
+                                            <div class="step-icon">
+                                                <i class="bi bi-camera-video"></i>
+                                            </div>
+                                            <small>Video</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <small class="text-muted">
+                                            Started: <%= new Date(job.created_at).toLocaleString() %>
+                                        </small>
+                                    </div>
+                                </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <% } %>
+
+                <!-- Job Queue -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-list-ul me-2"></i>Job Queue
+                                </h5>
+                                <button class="btn btn-primary btn-sm" onclick="createTestJob()">
+                                    <i class="bi bi-plus me-1"></i>Create Test Job
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <% 
+                                const allJobs = [...(pendingJobs || []), ...(runningJobs || []), ...(completedJobs || []).slice(0, 5), ...(failedJobs || []).slice(0, 5)];
+                                %>
+                                <% if (allJobs.length === 0) { %>
+                                <div class="text-center py-5">
+                                    <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                    <p class="text-muted mt-2 mb-0">No jobs in queue</p>
+                                </div>
+                                <% } else { %>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Topic</th>
+                                                <th>Status</th>
+                                                <th>Created</th>
+                                                <th>Duration</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% allJobs.forEach(job => { %>
+                                            <tr>
+                                                <td><%= job.id %></td>
+                                                <td>
+                                                    <div class="fw-semibold"><%= job.topic %></div>
+                                                    <% if (job.error_message) { %>
+                                                    <small class="text-danger">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                                        <%= job.error_message.substring(0, 100) %>...
+                                                    </small>
+                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <% 
+                                                    let badgeClass = 'bg-secondary';
+                                                    let icon = 'bi-question';
+                                                    if (job.status === 'completed') {
+                                                        badgeClass = 'bg-success';
+                                                        icon = 'bi-check-circle';
+                                                    } else if (job.status === 'failed') {
+                                                        badgeClass = 'bg-danger';
+                                                        icon = 'bi-x-circle';
+                                                    } else if (job.status === 'pending') {
+                                                        badgeClass = 'bg-warning';
+                                                        icon = 'bi-clock';
+                                                    } else {
+                                                        badgeClass = 'bg-info';
+                                                        icon = 'bi-gear';
+                                                    }
+                                                    %>
+                                                    <span class="badge <%= badgeClass %> status-badge">
+                                                        <i class="<%= icon %> me-1"></i><%= job.status.replace('_', ' ').toUpperCase() %>
+                                                    </span>
+                                                </td>
+                                                <td><%= new Date(job.created_at).toLocaleString() %></td>
+                                                <td>
+                                                    <% if (job.completed_at) { %>
+                                                    <%= Math.round((new Date(job.completed_at) - new Date(job.created_at)) / 1000) %>s
+                                                    <% } else if (job.status !== 'pending') { %>
+                                                    <%= Math.round((new Date() - new Date(job.created_at)) / 1000) %>s
+                                                    <% } else { %>
+                                                    <span class="text-muted">-</span>
+                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <% if (job.status === 'failed') { %>
+                                                    <button class="btn btn-outline-primary btn-sm" onclick="retryJob(<%= job.id %>)">
+                                                        <i class="bi bi-arrow-clockwise me-1"></i>Retry
+                                                    </button>
+                                                    <% } %>
+                                                    <button class="btn btn-outline-info btn-sm" onclick="viewJobDetails(<%= job.id %>)">
+                                                        <i class="bi bi-eye me-1"></i>View
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Statistics -->
                 <div class="row">
                     <div class="col-md-6">
-                        <h6>Basic Information</h6>
-                        <table class="table table-sm">
-                            <tr><td>Topic:</td><td>\${job.topic}</td></tr>
-                            <tr><td>Status:</td><td>\${job.status}</td></tr>
-                            <tr><td>Created:</td><td>\${new Date(job.created_at).toLocaleString()}</td></tr>
-                            <tr><td>Duration:</td><td>\${job.total_duration_seconds || '-'}s</td></tr>
-                        </table>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-bar-chart me-2"></i>Success Rate
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <% 
+                                const totalJobs = stats.completed + stats.failed;
+                                const successRate = totalJobs > 0 ? Math.round((stats.completed / totalJobs) * 100) : 0;
+                                %>
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-grow-1">
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                 style="width: <%= successRate %>%" 
+                                                 aria-valuenow="<%= successRate %>" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                <%= successRate %>%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="ms-3">
+                                        <span class="h4 text-success"><%= successRate %>%</span>
+                                    </div>
+                                </div>
+                                <small class="text-muted">
+                                    <%= stats.completed %> of <%= totalJobs %> jobs completed successfully
+                                </small>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="col-md-6">
-                        <h6>Processing Times</h6>
-                        <table class="table table-sm">
-                            <tr><td>Script:</td><td>\${job.script_generation_time_ms ? (job.script_generation_time_ms/1000).toFixed(1) + 's' : '-'}</td></tr>
-                            <tr><td>Narration:</td><td>\${job.narration_generation_time_ms ? (job.narration_generation_time_ms/1000).toFixed(1) + 's' : '-'}</td></tr>
-                            <tr><td>Video:</td><td>\${job.video_generation_time_ms ? (job.video_generation_time_ms/1000).toFixed(1) + 's' : '-'}</td></tr>
-                        </table>
-                    </div>
-                </div>
-                \${job.script_text ? \`
-                    <div class="mt-3">
-                        <h6>Generated Script</h6>
-                        <div class="bg-light p-3 rounded">
-                            <pre class="mb-0">\${job.script_text}</pre>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-clock-history me-2"></i>Average Processing Time
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center">
+                                    <h3 class="text-primary mb-2">~5min</h3>
+                                    <p class="text-muted mb-0">Per video job</p>
+                                </div>
+                                <hr>
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <small class="text-muted d-block">Script</small>
+                                        <strong>30s</strong>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted d-block">Audio</small>
+                                        <strong>45s</strong>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted d-block">Video</small>
+                                        <strong>4min</strong>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                \` : ''}
-                \${job.error_message ? \`
-                    <div class="mt-3">
-                        <h6>Error Details</h6>
-                        <div class="alert alert-danger">
-                            \${job.error_message}
-                        </div>
-                    </div>
-                \` : ''}
-            \`;
-        })
-        .catch(error => {
-            content.innerHTML = \`
-                <div class="alert alert-danger">
-                    Failed to load job details: \${error.message}
                 </div>
-            \`;
-        });
-}
+            </main>
+        </div>
+    </div>
 
-function retryJob(jobId) {
-    if (confirm('Are you sure you want to retry this job?')) {
-        fetch(\`/api/pipeline/job/\${jobId}/retry\`, { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification('Job retry initiated', 'success');
-                    setTimeout(() => window.location.reload(), 2000);
-                } else {
-                    showNotification(data.message, 'error');
-                }
-            })
-            .catch(error => {
-                showNotification('Failed to retry job', 'error');
-            });
-    }
-}
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function refreshData() {
+            window.location.reload();
+        }
 
-// Auto-refresh for running jobs
-document.addEventListener('DOMContentLoaded', function() {
-    <% if (runningJobs.length > 0) { %>
+        function createTestJob() {
+            const topic = prompt('Enter a topic for the test job:', 'AI Technology Trends');
+            if (topic) {
+                fetch('/api/jobs/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        customTopic: topic,
+                        customCategory: 'technology',
+                        contentStyle: 'educational',
+                        targetDuration: 58
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Test job created successfully!');
+                        window.location.reload();
+                    } else {
+                        alert('Failed to create test job: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating test job');
+                });
+            }
+        }
+
+        function retryJob(jobId) {
+            if (confirm('Are you sure you want to retry this job?')) {
+                fetch(`/api/jobs/${jobId}/retry`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Job retry initiated successfully!');
+                        window.location.reload();
+                    } else {
+                        alert('Failed to retry job: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error retrying job');
+                });
+            }
+        }
+
+        function viewJobDetails(jobId) {
+            // Open job details in a new window or modal
+            window.open(`/admin/jobs/${jobId}`, '_blank');
+        }
+
+        // Auto-refresh if there are running jobs
+        <% if ((runningJobs || []).length > 0) { %>
         // Refresh every 10 seconds if there are running jobs
         setInterval(() => {
             window.location.reload();
         }, 10000);
-    <% } %>
-});
-</script>
-
-<%- include('../layout') %>
+        <% } %>
+    </script>
+</body>
+</html>
