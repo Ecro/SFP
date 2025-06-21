@@ -660,4 +660,192 @@ export class VideoJobOrchestrator {
       throw error;
     }
   }
+
+  // Method to create video job with pre-generated script (for content ideas)
+  async createVideoJobWithScript(
+    topic: TrendTopic,
+    script: GeneratedScript,
+    config: Partial<VideoJobConfig> = {}
+  ): Promise<VideoJobResult> {
+    const startTime = Date.now();
+    let jobId: number | null = null;
+
+    try {
+      logger.info(`Creating video job with pre-generated script: ${script.title}`);
+
+      // Create video job record
+      jobId = await this.videoJobModel.create({
+        trend_run_id: undefined, // No trend run for pre-generated content
+        status: 'script_generation',
+        topic: topic.keyword,
+        script_text: script.fullScript,
+        script_generation_time_ms: script.generationTime,
+        video_provider: 'pika', // Default provider
+        video_style: config.videoStyle || 'cinematic',
+        video_resolution: '1080x1920',
+        total_duration_seconds: script.estimatedDuration
+      });
+
+      logger.info(`Created video job ${jobId} with pre-generated script`);
+
+      // Set up progress tracking
+      this.updateJobProgress(jobId, 'narration', 20, 'Generating narration...');
+
+      // Generate narration
+      const audio = await this.generateNarration(script, config as VideoJobConfig);
+      await this.videoJobModel.update(jobId, {
+        narration_file_path: audio.audioFilePath,
+        narration_generation_time_ms: audio.generationTime,
+        status: 'video_synthesis'
+      });
+
+      this.updateJobProgress(jobId, 'video_synthesis', 50, 'Generating video...');
+
+      // Generate video (if not skipped)
+      let video: VideoGenerationResult | undefined;
+      if (!config.skipVideoGeneration) {
+        video = await this.generateVideo(script, config as VideoJobConfig);
+        await this.videoJobModel.update(jobId, {
+          video_file_path: video.videoFilePath,
+          video_generation_time_ms: video.generationTime,
+          video_task_id: video.taskId,
+          video_prompt: video.prompt,
+          status: 'completed'
+        });
+      }
+
+      this.updateJobProgress(jobId, 'thumbnail_generation', 75, 'Generating thumbnails...');
+
+      // Generate thumbnails
+      let thumbnails: ThumbnailVariants | undefined;
+      try {
+        thumbnails = await this.thumbnailService.generateThumbnailVariants({
+          title: script.title,
+          topic: topic.keyword,
+          style: config.thumbnailStyle || 'vibrant',
+          language: config.language || 'ko',
+          backgroundType: 'gradient',
+          includeEmoji: true
+        });
+      } catch (error) {
+        logger.warn('Thumbnail generation failed:', error);
+      }
+
+      // Upload to YouTube (if not skipped and video was generated)
+      let upload: YouTubeUploadResult | undefined;
+      if (!config.skipUpload && video && video.videoFilePath) {
+        this.updateJobProgress(jobId, 'youtube_upload', 90, 'Uploading to YouTube...');
+
+        try {
+          const uploadOptions = {
+            videoFilePath: video.videoFilePath,
+            title: script.title,
+            description: `${script.mainContent}\n\n${script.keywords.map(k => `#${k}`).join(' ')}`,
+            tags: script.keywords,
+            thumbnailAPath: thumbnails?.thumbnailA.filePath,
+            thumbnailBPath: thumbnails?.thumbnailB.filePath,
+            categoryId: this.getCategoryIdFromTopic(topic),
+            privacy: config.privacy || 'public',
+            language: config.language || 'ko'
+          };
+
+          upload = await this.youtubeUploadService.uploadVideo(uploadOptions);
+
+          // Save upload data
+          await this.youtubeUploadModel.create({
+            video_job_id: jobId,
+            video_id: upload.videoId,
+            title: upload.title,
+            description: upload.description,
+            tags: JSON.stringify(uploadOptions.tags),
+            thumbnail_a_path: uploadOptions.thumbnailAPath,
+            thumbnail_b_path: uploadOptions.thumbnailBPath,
+            thumbnail_test_id: thumbnails?.testConfiguration.testId,
+            upload_status: upload.status === 'uploaded' ? 'live' : upload.status,
+            privacy_status: uploadOptions.privacy,
+            category_id: uploadOptions.categoryId,
+            language: uploadOptions.language,
+            upload_time_ms: upload.uploadTime
+          });
+        } catch (error) {
+          logger.warn('YouTube upload failed:', error);
+        }
+      }
+
+      const totalTime = Date.now() - startTime;
+      this.updateJobProgress(jobId, 'completed', 100, 'Video job completed successfully');
+
+      // Final status update
+      await this.videoJobModel.update(jobId, {
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      });
+
+      // Log success
+      await this.logJobEvent(jobId, 'info', 'Video job completed successfully with pre-generated script', {
+        totalTime,
+        hasVideo: !!video,
+        hasUpload: !!upload,
+        scriptTitle: script.title
+      });
+
+      logger.info(`Video job ${jobId} completed successfully in ${totalTime}ms`);
+
+      return {
+        jobId,
+        topic,
+        script,
+        audio,
+        video,
+        thumbnails,
+        upload,
+        status: 'completed',
+        totalProcessingTime: totalTime
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      logger.error(`Video job failed: ${errorMessage}`, error);
+
+      if (jobId !== null) {
+        await this.videoJobModel.update(jobId, {
+          status: 'failed',
+          error_message: errorMessage,
+          completed_at: new Date().toISOString()
+        });
+
+        this.updateJobProgress(jobId, 'failed', 0, `Job failed: ${errorMessage}`);
+
+        await this.logJobEvent(jobId, 'error' as const, `Video job with script failed: ${errorMessage}`, {
+          error: errorMessage,
+          scriptTitle: script.title
+        });
+      }
+
+      throw error;
+    } finally {
+      if (jobId !== null) {
+        setTimeout(() => {
+          this.activeJobs.delete(jobId!);
+        }, 60000);
+      }
+    }
+  }
+
+  private getCategoryIdFromTopic(topic: TrendTopic): string {
+    const categoryMap: { [key: string]: string } = {
+      'technology': '28', // Science & Technology
+      'entertainment': '24', // Entertainment
+      'sports': '17', // Sports
+      'lifestyle': '22', // People & Blogs
+      'news': '25', // News & Politics
+      'education': '27', // Education
+      'music': '10', // Music
+      'gaming': '20', // Gaming
+      'health': '22', // People & Blogs
+      'finance': '25' // News & Politics
+    };
+
+    return categoryMap[topic.category] || '22'; // Default to People & Blogs
+  }
 }

@@ -1196,4 +1196,240 @@ router.get('/trends/search', async (req, res) => {
   }
 });
 
+// Content Ideas Testing Endpoints
+
+// Generate content ideas based on trends
+router.post('/test/content-ideas', async (req, res) => {
+  try {
+    const { category, count } = req.body;
+    
+    logger.info('Content ideas generation requested via API', { category, count });
+    
+    const { ContentIdeasService } = await import('../../services/contentIdeasService');
+    const contentIdeasService = new ContentIdeasService();
+    
+    const result = await contentIdeasService.generateContentIdeas({
+      category: category || undefined,
+      count: count || 10
+    });
+    
+    res.json({
+      success: true,
+      message: 'Content ideas generated successfully',
+      data: {
+        ideas: result.ideas,
+        trendsDiscovered: result.trendsDiscovered,
+        sourcesUsed: result.sourcesUsed,
+        generationTime: result.generationTime,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Content ideas generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate content ideas',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Execute a specific content idea
+router.post('/content-ideas/execute', async (req, res) => {
+  try {
+    const { ideaIndex, idea } = req.body;
+    
+    if (typeof ideaIndex !== 'number' || !idea) {
+      return res.status(400).json({
+        success: false,
+        message: 'Idea index and idea data are required'
+      });
+    }
+    
+    logger.info(`Executing content idea via API: ${idea.title}`);
+    
+    const { ContentIdeasService } = await import('../../services/contentIdeasService');
+    const contentIdeasService = new ContentIdeasService();
+    
+    // Execute the content idea (create full video job)
+    const result = await contentIdeasService.executeContentIdea(ideaIndex, [idea]);
+    
+    res.json({
+      success: true,
+      message: 'Content idea execution started successfully',
+      data: {
+        jobId: result.jobId,
+        topic: result.topic.keyword,
+        status: result.status,
+        totalProcessingTime: result.totalProcessingTime,
+        script: {
+          title: result.script.title,
+          estimatedDuration: result.script.estimatedDuration
+        },
+        audio: result.audio ? {
+          duration: result.audio.duration,
+          filePath: result.audio.audioFilePath
+        } : null,
+        video: result.video ? {
+          filePath: result.video.videoFilePath,
+          duration: result.video.duration,
+          provider: result.video.provider
+        } : null,
+        upload: result.upload ? {
+          videoId: result.upload.videoId,
+          videoUrl: result.upload.videoUrl,
+          status: result.upload.status
+        } : null
+      }
+    });
+  } catch (error) {
+    logger.error('Content idea execution error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to execute content idea',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get content idea generation statistics
+router.get('/content-ideas/stats', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days as string) || 7;
+    
+    // Get video jobs that were created from content ideas (those without trend_run_id)
+    const videoJobs = await videoJobModel.getAllJobs();
+    const contentIdeaJobs = videoJobs.filter((job: any) => !job.trend_run_id);
+    
+    // Filter by date range
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    const recentJobs = contentIdeaJobs.filter((job: any) => 
+      new Date(job.created_at || 0) > cutoffDate
+    );
+    
+    const stats = {
+      totalContentIdeasGenerated: recentJobs.length,
+      successfulExecutions: recentJobs.filter((job: any) => job.status === 'completed').length,
+      failedExecutions: recentJobs.filter((job: any) => job.status === 'failed').length,
+      averageProcessingTime: recentJobs.length > 0 ? 
+        recentJobs
+          .filter((job: any) => job.completed_at && job.created_at)
+          .reduce((sum: number, job: any) => {
+            const start = new Date(job.created_at!).getTime();
+            const end = new Date(job.completed_at!).getTime();
+            return sum + (end - start);
+          }, 0) / recentJobs.length : 0,
+      popularCategories: recentJobs.reduce((acc: any, job: any) => {
+        // Extract category from job data if available
+        const category = 'general'; // Would need to track this in job data
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      }, {}),
+      successRate: recentJobs.length > 0 ? 
+        (recentJobs.filter((job: any) => job.status === 'completed').length / recentJobs.length) * 100 : 0
+    };
+    
+    res.json({
+      success: true,
+      message: 'Content ideas statistics retrieved successfully',
+      data: {
+        ...stats,
+        period: `${days} days`,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Content ideas stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get content ideas statistics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Test individual content generation components
+router.post('/test/content-component', async (req, res) => {
+  try {
+    const { component, topic, category, style, duration } = req.body;
+    
+    if (!component || !topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Component type and topic are required'
+      });
+    }
+    
+    logger.info(`Testing content component: ${component} for topic: ${topic}`);
+    
+    let result;
+    
+    switch (component) {
+      case 'script':
+        const { ScriptGenerationService } = await import('../../services/scriptGenerationService');
+        const scriptService = new ScriptGenerationService();
+        
+        // Create a mock topic for script generation
+        const mockTopic = {
+          keyword: topic,
+          score: 80,
+          region: 'KR',
+          category: category || 'general',
+          relatedQueries: [`${topic} 정보`, `${topic} 뉴스`],
+          predictedViews: 500000,
+          volatility: 0.7,
+          competitiveness: 0.5
+        };
+        
+        result = await scriptService.generateScript({
+          topic: mockTopic,
+          style: style || 'educational',
+          targetDuration: duration || 58,
+          includeHook: true,
+          language: 'ko'
+        });
+        break;
+        
+      case 'storyline':
+        const { ContentIdeasService } = await import('../../services/contentIdeasService');
+        const contentService = new ContentIdeasService();
+        
+        // Generate a single content idea
+        const ideas = await contentService.generateContentIdeas({
+          category: category || undefined,
+          count: 1
+        });
+        
+        result = ideas.ideas[0] || null;
+        break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          message: `Unknown component type: ${component}`
+        });
+    }
+    
+    res.json({
+      success: true,
+      message: `${component} component test completed successfully`,
+      data: {
+        component,
+        topic,
+        result,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error(`Content component test error (${req.body.component}):`, error);
+    res.status(500).json({
+      success: false,
+      message: `Failed to test ${req.body.component} component`,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export { router as apiRoutes };

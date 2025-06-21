@@ -255,4 +255,21 @@ router.get('/settings', async (req, res) => {
   }
 });
 
+// Test Content Ideas page
+router.get('/test-content', async (req, res) => {
+  try {
+    res.render('dashboard/test-content', {
+      title: 'Test Content Ideas',
+      activeTab: 'test-content'
+    });
+  } catch (error) {
+    logger.error('Test content page error:', error);
+    res.status(500).render('error', {
+      title: 'Test Content Error',
+      message: 'Failed to load test content page',
+      error
+    });
+  }
+});
+
 export { router as dashboardRoutes };

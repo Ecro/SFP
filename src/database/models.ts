@@ -292,6 +292,12 @@ export class VideoJobModel {
       [status]
     );
   }
+
+  async getAllJobs(): Promise<VideoJob[]> {
+    return await this.db.all<VideoJob>(
+      'SELECT * FROM video_jobs ORDER BY created_at DESC'
+    );
+  }
 }
 
 export class SystemLogModel {
